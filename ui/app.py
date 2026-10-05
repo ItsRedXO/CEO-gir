@@ -484,7 +484,7 @@ def api_assets():
             """
             SELECT task_id, title, workstream_id, status, result_json, updated_at
             FROM ceo_tasks
-            WHERE workstream_id IN ('assets_2d','assets_3d','assets','youtube','gumroad','fiverr','etsy')
+            WHERE workstream_id IN ('assets_2d','assets_3d','gumroad','youtube')
               AND status = 'completed'
               AND result_json IS NOT NULL
             ORDER BY updated_at DESC
@@ -499,29 +499,8 @@ def api_assets():
                     result = _json.loads(row["result_json"]) if isinstance(row["result_json"], str) else row["result_json"]
                 except Exception:
                     pass
-            # Fiverr gig fields
-            if row["workstream_id"] == "fiverr":
-                gig = result.get("gig", {})
-                assets.append({
-                    "task_id":       row["task_id"],
-                    "title":         row["title"],
-                    "workstream_id": row["workstream_id"],
-                    "asset_type":    "fiverr_gig",
-                    "style":         gig.get("category", ""),
-                    "preview_svg":   None,
-                    "preview_url":   result.get("preview_url") or gig.get("preview_url"),
-                    "formats":       ["Fiverr Gig"],
-                    "platforms":     ["fiverr"],
-                    "listing_ready": result.get("listing_ready", True),
-                    "price_usd":     gig.get("packages", {}).get("basic", {}).get("price", 15),
-                    "gig_title":     gig.get("title", ""),
-                    "gig_tags":      gig.get("tags", []),
-                    "packages":      gig.get("packages", {}),
-                    "post_instructions": result.get("post_instructions", ""),
-                    "updated_at":    row["updated_at"],
-                })
             # YouTube Shorts special fields
-            elif row["workstream_id"] == "youtube":
+            if row["workstream_id"] == "youtube":
                 assets.append({
                     "task_id":      row["task_id"],
                     "title":        row["title"],

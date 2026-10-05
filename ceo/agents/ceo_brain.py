@@ -217,18 +217,11 @@ def _asset2d_pipeline(asset_type: str = "printable", style: str = "minimal") -> 
             "input_data": {"asset_type": asset_type, "style": style, "quantity": 3},
         },
         {
-            "title": f"List {style} {asset_type} on Etsy",
-            "workstream_id": "etsy",
-            "capabilities": ["listing", "etsy"],
+            "title": f"Post {style} {asset_type} to Gumroad (from 2D pipeline)",
+            "workstream_id": "gumroad",
+            "capabilities": ["2d_asset", "design", "printable"],
             "priority": 4,
-            "input_data": {"product_type": asset_type, "niche": style, "price_usd": 6.99},
-        },
-        {
-            "title": f"List {style} {asset_type} on Creative Market",
-            "workstream_id": "assets_2d",
-            "capabilities": ["2d_asset"],
-            "priority": 3,
-            "input_data": {"asset_type": asset_type, "style": style, "platform": "creative_market"},
+            "input_data": {"asset_type": asset_type, "style": style, "price_usd": 6.99, "platform": "gumroad"},
         },
         {
             "title": f"Track {style} {asset_type} sales performance",
