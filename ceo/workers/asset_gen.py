@@ -59,7 +59,6 @@ def _post_to_gumroad(name: str, description: str, price_usd: float, preview_url:
         import urllib.request, urllib.parse, urllib.error, json as _json
         price_cents = max(0, int(round(price_usd * 100)))
         payload = urllib.parse.urlencode({
-            "access_token": _GUMROAD_TOKEN,
             "name": name[:100],
             "description": description[:500] if description else f"Professional {name} — instant digital download.",
             "price": price_cents,
@@ -73,7 +72,10 @@ def _post_to_gumroad(name: str, description: str, price_usd: float, preview_url:
                 "https://api.gumroad.com/v2/products",
                 data=payload,
                 method="POST",
-                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                headers={
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "Authorization": f"Bearer {_GUMROAD_TOKEN}",
+                },
             )
             try:
                 with urllib.request.urlopen(req, timeout=20) as resp:
