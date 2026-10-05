@@ -731,6 +731,112 @@
     .btn-game-toggle.active { background: var(--accent2); color: #fff; border-color: var(--accent2); }
     .btn-game-toggle:hover:not(.active) { border-color: var(--accent); color: var(--accent); }
 
+    /* ── Hub Map (Animated Game View) ── */
+    .hub-map {
+      position: relative; width: 100%; height: 520px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; overflow: hidden; margin-bottom: 12px;
+    }
+    .hub-map::before {
+      content: ''; position: absolute; inset: 0; z-index: 0;
+      background-image:
+        linear-gradient(rgba(0,212,255,.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,212,255,.03) 1px, transparent 1px);
+      background-size: 44px 44px; pointer-events: none;
+    }
+    .hub-map-svg {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      pointer-events: none; z-index: 1;
+    }
+    .hub-map-title {
+      position: absolute; top: 10px; left: 14px; z-index: 15;
+      font-size: 9px; color: var(--muted); letter-spacing: 1.5px; text-transform: uppercase;
+    }
+    .hub-map-scan {
+      position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      opacity: .18; animation: scan-h 4.5s linear infinite;
+      pointer-events: none; z-index: 2;
+    }
+    .hub-center {
+      position: absolute; transform: translate(-50%,-50%);
+      display: flex; flex-direction: column; align-items: center; gap: 3px; z-index: 10;
+    }
+    .hub-label {
+      font-size: 8px; color: var(--accent); letter-spacing: 2px; text-transform: uppercase;
+      text-shadow: 0 0 8px rgba(0,212,255,.4);
+    }
+    .hub-ministat {
+      display: flex; gap: 3px; align-items: baseline;
+      font-size: 9px; font-weight: bold; white-space: nowrap;
+    }
+    .hub-ceo-status {
+      font-size: 7px; color: var(--muted); letter-spacing: .5px;
+      max-width: 140px; text-align: center; line-height: 1.3;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .office-node {
+      position: absolute; transform: translate(-50%,-50%);
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+      z-index: 10; min-width: 64px;
+    }
+    .office-box {
+      background: var(--surface2); border: 1px solid var(--border); border-radius: 6px;
+      padding: 5px 9px; display: flex; flex-direction: column; align-items: center; gap: 1px;
+      transition: border-color .3s, box-shadow .3s;
+    }
+    .office-box.active { border-color: var(--accent); box-shadow: 0 0 10px rgba(0,212,255,.22); }
+    .office-box.stuck  { border-color: var(--red); box-shadow: 0 0 10px rgba(239,68,68,.3); animation: pulse .5s infinite; }
+    .office-box.locked { opacity: .32; }
+    .office-icon  { font-size: 13px; line-height: 1; }
+    .office-name  { font-size: 7px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; white-space: nowrap; }
+    .office-tasks { font-size: 8px; color: var(--accent); font-weight: bold; min-height: 10px; }
+
+    /* — Agent walking tokens — */
+    .agent-token {
+      position: absolute; width: 16px; height: 22px;
+      transform: translate(-50%,-50%); z-index: 20; pointer-events: none;
+      transition: left 1.55s linear, top 1.55s linear;
+    }
+    .agent-head {
+      width: 12px; height: 8px; background: var(--surface2); border: 1.5px solid var(--accent2);
+      border-radius: 2px; margin: 0 auto 1px;
+      display: flex; align-items: center; justify-content: center; gap: 2px;
+    }
+    .agent-eye { width: 3px; height: 3px; background: var(--accent); border-radius: 50%; }
+    .agent-body {
+      width: 11px; height: 11px; background: var(--accent2); border-radius: 2px;
+      border: 1.5px solid rgba(255,255,255,.15); margin: 0 auto; position: relative;
+      transition: background .3s;
+    }
+    .agent-body::after {
+      content: ''; width: 5px; height: 4px; background: var(--surface3); border-radius: 1px;
+      position: absolute; top: 2px; left: 50%; transform: translateX(-50%);
+    }
+    .agent-legs { display: flex; gap: 3px; justify-content: center; margin-top: 1px; }
+    .agent-leg  { width: 4px; height: 4px; background: var(--surface2); border: 1px solid var(--border); border-radius: 0 0 2px 2px; }
+    .agent-stuck-icon {
+      position: absolute; top: -13px; left: 50%; transform: translateX(-50%); font-size: 9px;
+    }
+    @keyframes agt-walk {
+      0%,100% { transform: translate(-50%,-50%) rotate(-3deg) scaleX(1); }
+      50%      { transform: translate(-50%,-50%) rotate(3deg)  scaleX(.88); }
+    }
+    @keyframes agt-work {
+      0%,100% { transform: translate(-50%,-58%); }
+      50%      { transform: translate(-50%,-42%); }
+    }
+    @keyframes agt-stuck {
+      0%,100% { transform: translate(-50%,-50%) rotate(0deg); }
+      25%     { transform: translate(-50%,-50%) rotate(-11deg); }
+      75%     { transform: translate(-50%,-50%) rotate(11deg); }
+    }
+    .agent-token.moving  { animation: agt-walk .38s ease infinite; }
+    .agent-token.working { animation: agt-work .48s ease infinite; }
+    .agent-token.stuck   { animation: agt-stuck .22s ease infinite; }
+    .agent-token.stuck .agent-body { background: var(--red); }
+    .agent-token.stuck .agent-eye  { background: var(--red); }
+
     /* ── Responsive tweak ── */
     @media (max-width: 900px) {
       .main { grid-template-columns: 1fr; }
@@ -1020,70 +1126,63 @@
       </div>
     </div>
 
-    <!-- Game View — Robot Rooms -->
+    <!-- Game View — Animated Hub Map -->
     <div class="game-rooms" id="game-rooms">
+      <div class="hub-map" id="hub-map">
+        <div class="hub-map-title">⚡ CEO GIR — AGENT OPERATIONS HUB</div>
 
-      <!-- CEO Command Room -->
-      <div class="ceo-command-room">
-        <div class="robot-ceo" id="ceo-robot">
-          <div class="rc-ant"><div class="rc-ant-tip"></div></div>
-          <div class="rc-head">
-            <div class="rc-visor">
-              <div class="rc-eye-l"></div>
-              <div class="rc-eye-r"></div>
-            </div>
-            <div class="rc-mouth"></div>
-          </div>
-          <div class="rc-torso">
-            <div class="rc-arm rc-arm-l"></div>
-            <div class="rc-panel">
-              <div class="rc-panel-row">
-                <div class="rc-light rc-l1"></div>
-                <div class="rc-light rc-l2"></div>
-              </div>
-              <div class="rc-panel-row">
-                <div class="rc-light rc-l3"></div>
-                <div class="rc-light rc-l4"></div>
-              </div>
-            </div>
-            <div class="rc-arm rc-arm-r"></div>
-          </div>
-          <div class="rc-legs">
-            <div class="rc-leg"></div>
-            <div class="rc-leg"></div>
-          </div>
-        </div>
-        <div class="ceo-info">
-          <div class="ceo-title">⚡ CEO GIR</div>
-          <div class="ceo-subtitle">Chief Executive Officer · Autonomous Revenue AI</div>
-          <div class="ceo-status-txt" id="ceo-status-txt">Monitoring all workstreams…</div>
-          <div class="ceo-stats-row">
-            <div class="ceo-stat">
-              <div class="ceo-stat-v txt-green" id="ceo-daily">$0.00</div>
-              <div class="ceo-stat-l">today</div>
-            </div>
-            <div class="ceo-stat">
-              <div class="ceo-stat-v txt-accent" id="ceo-queued">0</div>
-              <div class="ceo-stat-l">queued</div>
-            </div>
-            <div class="ceo-stat">
-              <div class="ceo-stat-v txt-yellow" id="ceo-agent-count">0</div>
-              <div class="ceo-stat-l">rooms</div>
-            </div>
-            <div class="ceo-stat">
-              <div class="ceo-stat-v" id="ceo-cycles">0</div>
-              <div class="ceo-stat-l">cycles</div>
-            </div>
-          </div>
-        </div>
-        <div class="ceo-scan-line"></div>
-      </div>
+        <!-- Corridor paths drawn by JS -->
+        <svg class="hub-map-svg" id="hub-map-svg"></svg>
 
-      <!-- Workstream Rooms -->
-      <div class="room-grid" id="room-grid">
-        <div style="color:var(--muted);font-size:11px;padding:20px;grid-column:1/-1;text-align:center">
-          Toggle game view — rooms render when workstreams load.
+        <!-- CEO hub center -->
+        <div class="hub-center" id="hub-center" style="left:50%;top:48%">
+          <div class="robot-ceo" id="ceo-robot">
+            <div class="rc-ant"><div class="rc-ant-tip"></div></div>
+            <div class="rc-head">
+              <div class="rc-visor">
+                <div class="rc-eye-l"></div>
+                <div class="rc-eye-r"></div>
+              </div>
+              <div class="rc-mouth"></div>
+            </div>
+            <div class="rc-torso">
+              <div class="rc-arm rc-arm-l"></div>
+              <div class="rc-panel">
+                <div class="rc-panel-row">
+                  <div class="rc-light rc-l1"></div>
+                  <div class="rc-light rc-l2"></div>
+                </div>
+                <div class="rc-panel-row">
+                  <div class="rc-light rc-l3"></div>
+                  <div class="rc-light rc-l4"></div>
+                </div>
+              </div>
+              <div class="rc-arm rc-arm-r"></div>
+            </div>
+            <div class="rc-legs">
+              <div class="rc-leg"></div>
+              <div class="rc-leg"></div>
+            </div>
+          </div>
+          <div class="hub-label">CEO HQ</div>
+          <div class="hub-ministat">
+            <span class="txt-green" id="ceo-daily">$0.00</span>
+            <span class="txt-muted">&nbsp;·&nbsp;</span>
+            <span class="txt-accent" id="ceo-queued">0</span><span class="txt-muted" style="font-size:7px">q</span>
+            <span class="txt-muted">&nbsp;·&nbsp;</span>
+            <span id="ceo-cycles">0</span><span class="txt-muted" style="font-size:7px">cyc</span>
+          </div>
+          <div class="hub-ceo-status" id="ceo-status-txt">Monitoring…</div>
+          <div id="ceo-agent-count" style="display:none">0</div>
         </div>
+
+        <!-- Office nodes — populated by JS -->
+        <div id="hub-offices"></div>
+
+        <!-- Agent tokens — spawned/moved by JS -->
+        <div id="hub-agents"></div>
+
+        <div class="hub-map-scan"></div>
       </div>
     </div>
 
@@ -2053,8 +2152,138 @@
     } catch(e) { toast('Seed failed: ' + e.message, 'err'); }
   }
 
-  // ── Game View ──
+  // ── Game View — Animated Hub Map ──
   let _gameViewActive = false;
+  let _hubInitialized = false;
+  let _lastWsList = [];
+
+  // Office positions (% of hub-map container). Hub is at 50%, 48%.
+  const _HUB = { x: 50, y: 48 };
+  const _OFFICES = {
+    research:  { icon: '🔍', label: 'Research',  x: 50, y: 9  },
+    trends:    { icon: '📈', label: 'Trends',    x: 75, y: 17 },
+    assets_2d: { icon: '🎨', label: '2D Assets', x: 88, y: 44 },
+    gumroad:   { icon: '🛒', label: 'Gumroad',   x: 77, y: 75 },
+    youtube:   { icon: '▶️', label: 'YouTube',   x: 50, y: 86 },
+    pinterest: { icon: '📌', label: 'Pinterest', x: 23, y: 75 },
+    assets_3d: { icon: '🧊', label: '3D Assets', x: 12, y: 44 },
+    content:   { icon: '✍️', label: 'Content',   x: 25, y: 17 },
+  };
+
+  // Agent state per workstream: { el, state: 'hub'|'transit'|'working'|'stuck' }
+  const _agents   = {};
+  const _prevFail = {};
+
+  function _initHubMap() {
+    if (_hubInitialized) return;
+    _hubInitialized = true;
+
+    // Draw dashed corridor lines + hub ring in SVG
+    const svg = document.getElementById('hub-map-svg');
+    if (svg) {
+      svg.innerHTML =
+        Object.values(_OFFICES).map(o =>
+          `<line x1="${_HUB.x}%" y1="${_HUB.y}%" x2="${o.x}%" y2="${o.y}%"
+            stroke="rgba(0,212,255,0.09)" stroke-width="1.5" stroke-dasharray="5,6"/>`
+        ).join('') +
+        `<circle cx="${_HUB.x}%" cy="${_HUB.y}%" r="46"
+          fill="none" stroke="rgba(0,212,255,0.07)" stroke-width="1"/>`;
+    }
+
+    // Create office node elements
+    const el = document.getElementById('hub-offices');
+    if (el) {
+      el.innerHTML = Object.entries(_OFFICES).map(([wsId, o]) =>
+        `<div class="office-node" id="office-${wsId}" style="left:${o.x}%;top:${o.y}%">
+          <div class="office-box locked" id="office-box-${wsId}">
+            <div class="office-icon">${o.icon}</div>
+            <div class="office-name">${o.label}</div>
+            <div class="office-tasks" id="office-tasks-${wsId}">—</div>
+          </div>
+        </div>`
+      ).join('');
+    }
+  }
+
+  function _getAgent(wsId) {
+    if (_agents[wsId]?.el) return _agents[wsId];
+    const wrap = document.getElementById('hub-agents');
+    if (!wrap) return null;
+    const el = document.createElement('div');
+    el.className = 'agent-token';
+    el.id = 'agent-' + wsId;
+    el.style.left = _HUB.x + '%';
+    el.style.top  = _HUB.y + '%';
+    el.innerHTML =
+      '<div class="agent-head"><span class="agent-eye"></span><span class="agent-eye"></span></div>' +
+      '<div class="agent-body"></div>' +
+      '<div class="agent-legs"><span class="agent-leg"></span><span class="agent-leg"></span></div>';
+    wrap.appendChild(el);
+    _agents[wsId] = { el, state: 'hub' };
+    return _agents[wsId];
+  }
+
+  function _setAgent(ag, x, y, state) {
+    if (!ag?.el) return;
+    ag.el.classList.remove('moving', 'working', 'stuck');
+    ag.el.style.transition = state === 'stuck' ? 'none' : 'left 1.55s linear, top 1.55s linear';
+    if (state === 'transit')  ag.el.classList.add('moving');
+    if (state === 'working')  ag.el.classList.add('working');
+    if (state === 'stuck') {
+      ag.el.classList.add('stuck');
+      if (!ag.el.querySelector('.agent-stuck-icon')) {
+        const ico = document.createElement('div');
+        ico.className = 'agent-stuck-icon';
+        ico.textContent = '🔴';
+        ag.el.appendChild(ico);
+      }
+    }
+    ag.el.style.left = x + '%';
+    ag.el.style.top  = y + '%';
+    ag.state = state;
+  }
+
+  function _dispatchAgent(wsId) {
+    const off = _OFFICES[wsId];
+    if (!off) return;
+    const ag = _getAgent(wsId);
+    if (!ag) return;
+    if (ag.state === 'working' || ag.state === 'transit') return;
+    ag.el.querySelector('.agent-stuck-icon')?.remove();
+    _setAgent(ag, off.x, off.y, 'transit');
+    setTimeout(() => {
+      if (_agents[wsId]?.state === 'transit') _setAgent(_agents[wsId], off.x, off.y, 'working');
+    }, 1650);
+  }
+
+  function _recallAgent(wsId) {
+    const ag = _agents[wsId];
+    if (!ag || ag.state === 'hub') return;
+    ag.el.querySelector('.agent-stuck-icon')?.remove();
+    _setAgent(ag, _HUB.x, _HUB.y, 'transit');
+    setTimeout(() => {
+      if (_agents[wsId]?.state === 'transit') {
+        _agents[wsId].el.classList.remove('moving');
+        _agents[wsId].state = 'hub';
+      }
+    }, 1650);
+  }
+
+  function _stuckAgent(wsId) {
+    const ag  = _agents[wsId];
+    const off = _OFFICES[wsId];
+    if (!off) return;
+    const ag2 = ag || _getAgent(wsId);
+    if (!ag2) return;
+    // Freeze at midpoint if still parked at hub, else freeze wherever it is
+    let fx = parseFloat(ag2.el.style.left) || _HUB.x;
+    let fy = parseFloat(ag2.el.style.top)  || _HUB.y;
+    if (!ag || ag.state === 'hub') {
+      fx = (_HUB.x + off.x) / 2;
+      fy = (_HUB.y + off.y) / 2;
+    }
+    _setAgent(ag2, fx, fy, 'stuck');
+  }
 
   function toggleGameView() {
     _gameViewActive = !_gameViewActive;
@@ -2064,8 +2293,8 @@
       rooms.classList.add('visible');
       btn.classList.add('active');
       btn.textContent = '📊 GRID VIEW';
-      // Immediately render if we already have data
-      if (_lastWsList && _lastWsList.length) renderGameView(_lastWsList);
+      _initHubMap();
+      if (_lastWsList && _lastWsList.length) renderHubMap(_lastWsList);
     } else {
       rooms.classList.remove('visible');
       btn.classList.remove('active');
@@ -2073,67 +2302,76 @@
     }
   }
 
-  function _robotWorkerHTML(state, color) {
-    const eyeStyle = state === 'working' ? 'style="background:var(--yellow);box-shadow:0 0 4px var(--yellow)"'
-                   : state === 'locked'  ? 'style="background:var(--muted)"' : '';
-    const lightStyle = state === 'working' ? 'style="background:var(--green);animation:pulse .3s infinite"'
-                     : state === 'locked'  ? 'style="background:var(--muted);animation:none"' : '';
-    return `<div class="robot-w rw-${state}" title="${state}">
-      <div class="rw-ant"><div class="rw-ant-tip"></div></div>
-      <div class="rw-head"><div class="rw-eyes"><span class="rw-eye" ${eyeStyle}></span><span class="rw-eye" ${eyeStyle}></span></div></div>
-      <div class="rw-torso">
-        <div class="rw-arm rw-arm-l"></div>
-        <div class="rw-panel"><div class="rw-light" ${lightStyle}></div></div>
-        <div class="rw-arm rw-arm-r"></div>
-      </div>
-      <div class="rw-legs"><span class="rw-leg"></span><span class="rw-leg"></span></div>
-    </div>`;
-  }
-
-  let _lastWsList = [];
-
-  function renderGameView(wsList) {
+  function renderHubMap(wsList) {
     _lastWsList = wsList;
     if (!_gameViewActive || !wsList) return;
-    const grid = document.getElementById('room-grid');
-    if (!grid) return;
+    _initHubMap();
 
-    // Update CEO stats from existing header elements
     const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
     setEl('ceo-daily',  document.getElementById('h-daily')?.textContent  || '$0.00');
     setEl('ceo-queued', document.getElementById('h-tasks')?.textContent  || '0');
     setEl('ceo-agent-count', wsList.length);
 
-    grid.innerHTML = wsList.map(ws => {
+    for (const ws of wsList) {
+      const wsId   = ws.workstream_id;
+      if (!wsId || !_OFFICES[wsId]) continue;
+
       const counts  = ws.task_counts || {};
       const active  = (counts.in_progress || 0) + (counts.assigned || 0);
-      const total   = ws.total_tasks || 0;
-      const isActive = active > 0;
-      const isLocked = !ws.enabled;
+      const failed  = counts.failed || 0;
+      const prevF   = _prevFail[wsId] || 0;
+      const enabled = ws.enabled !== false;
 
-      // Robots: always at least 1, scale up with task load
-      const numRobots = Math.max(1, Math.min(5, Math.ceil(total / 4) + (active > 0 ? 1 : 0)));
-      let agentsHTML = '';
-      for (let i = 0; i < numRobots; i++) {
-        const state = isLocked ? 'locked' : i < active ? 'working' : total > 0 ? 'active' : 'idle';
-        agentsHTML += _robotWorkerHTML(state);
+      // Update office status badge
+      const box = document.getElementById('office-box-' + wsId);
+      if (box) {
+        box.className = 'office-box';
+        if (!enabled)            box.classList.add('locked');
+        else if (failed > prevF) box.classList.add('stuck');
+        else if (active > 0)     box.classList.add('active');
+      }
+      const tasksEl = document.getElementById('office-tasks-' + wsId);
+      if (tasksEl) {
+        tasksEl.textContent = active > 0 ? active + '▶' : counts.queued > 0 ? counts.queued + 'q' : '—';
       }
 
-      const revBadge = ws.revenue_target_daily > 0
-        ? `<div class="room-rev-badge">$${ws.revenue_target_daily}/d</div>` : '';
+      // Drive agent movement
+      if (enabled) {
+        const agState = _agents[wsId]?.state || 'hub';
+        if (failed > prevF) {
+          _stuckAgent(wsId);
+        } else if (active > 0 && agState === 'hub') {
+          _dispatchAgent(wsId);
+        } else if (active === 0 && agState === 'working') {
+          _recallAgent(wsId);
+        }
+      }
 
-      return `<div class="room-card ${isActive ? 'room-active' : ''} ${isLocked ? 'room-locked' : ''}">
-        ${revBadge}
-        <div class="room-header-row">
-          <div class="room-title-txt">${ws.icon} ${ws.name}</div>
-          <div class="room-task-info">${total}t · ${active}▶</div>
-        </div>
-        <div class="room-agents">${agentsHTML}</div>
-        <div class="room-floor-line"></div>
-        <div class="room-ground"></div>
-      </div>`;
-    }).join('');
+      _prevFail[wsId] = failed;
+    }
   }
+
+  // SSE quick-dispatch hook — fires agents immediately when log events mention a workstream
+  function _sseAgentHint(parsed) {
+    if (!_gameViewActive) return;
+    const msg  = (parsed.msg  || '').toLowerCase();
+    const name = (parsed.name || '').toLowerCase();
+    const lvl  = parsed.level || '';
+    for (const wsId of Object.keys(_OFFICES)) {
+      const slug = wsId.replace('_', '');
+      if (!name.includes(slug) && !msg.includes(wsId.replace('_', ' ')) && !msg.includes(slug)) continue;
+      if (lvl === 'ERROR' || lvl === 'CRITICAL') {
+        // Stick agent on error logs — definitive failures only
+        if (_agents[wsId] && _agents[wsId].state !== 'hub') _stuckAgent(wsId);
+      } else if (msg.includes('execut') || msg.includes('dispatch') || msg.includes('asset') || msg.includes('✅')) {
+        if ((_agents[wsId]?.state || 'hub') === 'hub') _dispatchAgent(wsId);
+      }
+      break;
+    }
+  }
+
+  // Alias so existing loadWorkstreams() call still works
+  function renderGameView(wsList) { renderHubMap(wsList); }
 
   // ── Live Mission Panel ──
   function _setLMStep(active) {
@@ -2245,6 +2483,7 @@
     _liveFeedCount++;
     const cnt = document.getElementById('live-feed-count');
     if (cnt) cnt.textContent = _liveFeedCount + ' events';
+    _sseAgentHint(parsed);
   }
 
   function _startLiveFeed() {
