@@ -10,7 +10,48 @@ import time
 import math
 import hashlib
 import random
+import logging
 from .base import BaseWorker, WorkerResult
+
+log = logging.getLogger(__name__)
+
+_GUMROAD_TOKEN = os.environ.get("GUMROAD_ACCESS_TOKEN", "")
+
+
+def _post_to_gumroad(name: str, description: str, price_usd: float, preview_url: str = "") -> dict:
+    """Create a real Gumroad product. Returns {url, product_id} or {} on failure."""
+    if not _GUMROAD_TOKEN:
+        return {}
+    try:
+        import urllib.request, urllib.parse, json as _json
+        price_cents = max(0, int(round(price_usd * 100)))
+        payload = urllib.parse.urlencode({
+            "access_token": _GUMROAD_TOKEN,
+            "name": name[:100],
+            "description": description[:500] if description else f"Professional {name} — instant digital download.",
+            "price": price_cents,
+            "currency": "usd",
+            "url": preview_url or "",
+            "published": "true",
+        }).encode()
+        req = urllib.request.Request(
+            "https://api.gumroad.com/v1/products",
+            data=payload,
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = _json.loads(resp.read())
+        if data.get("success"):
+            p = data["product"]
+            log.info("Gumroad product created: %s — %s", p.get("name"), p.get("short_url"))
+            return {
+                "product_id": p.get("id"),
+                "url": p.get("short_url") or p.get("url"),
+                "gumroad_id": p.get("id"),
+            }
+    except Exception as e:
+        log.warning("Gumroad post failed: %s", e)
+    return {}
 
 def _pollinations_url(asset_type: str, style: str, title: str) -> str:
     """Returns a Pollinations.ai image URL (no API key needed)."""
@@ -307,6 +348,14 @@ class Asset2DWorker(BaseWorker):
                 "preview_url": preview_url if i == 0 else None,
             })
 
+        # Try to post to Gumroad if token is set
+        gumroad_result = _post_to_gumroad(
+            name=title,
+            description=f"{style.title()} {asset_type.replace('_', ' ')} — {', '.join(spec['formats'])} formats — instant download.",
+            price_usd=price,
+            preview_url=preview_url,
+        )
+
         output = {
             "asset_type":   asset_type,
             "style":        style,
@@ -316,14 +365,17 @@ class Asset2DWorker(BaseWorker):
             "dimensions":   spec.get("dimensions"),
             "dpi":          spec.get("dpi"),
             "tags":         tags,
-            "listing_ready": True,
+            "listing_ready": bool(gumroad_result.get("url")),
             "preview_svg":  preview_svg,
             "preview_url":  preview_url,
             "platforms":    platforms,
+            "url":          gumroad_result.get("url"),
+            "gumroad_id":   gumroad_result.get("product_id"),
+            "platform":     "gumroad" if gumroad_result.get("url") else "pending",
             "economic_data": {
-                "revenue":    price,
+                "revenue":    price if gumroad_result.get("url") else 0.0,
                 "spend":      0.0,
-                "profit":     price,
+                "profit":     price if gumroad_result.get("url") else 0.0,
                 "price_usd":  price,
                 "asset_type": asset_type,
             },
