@@ -343,6 +343,47 @@ def _gumroad_pipeline(asset_type: str = "printable", style: str = "minimal") -> 
     ]
 
 
+def _reddit_pipeline(asset_type: str = "printable", style: str = "boho") -> list[dict]:
+    return [
+        {
+            "title": f"Generate {style} {asset_type} for Reddit drop",
+            "workstream_id": "assets_2d",
+            "capabilities": ["2d_asset", "design"],
+            "priority": 3,
+            "input_data": {"asset_type": asset_type, "style": style, "quantity": 1},
+        },
+        {
+            "title": f"Post {style} {asset_type} to Reddit",
+            "workstream_id": "traffic",
+            "capabilities": ["reddit_traffic", "traffic"],
+            "priority": 2,
+            "input_data": {
+                "asset_type": asset_type, "style": style,
+                "store_url": "https://gumroad.com", "max_posts": 3,
+            },
+        },
+    ]
+
+
+def _kofi_pipeline(asset_type: str = "printable", style: str = "minimal") -> list[dict]:
+    return [
+        {
+            "title": f"Generate {style} {asset_type} for Ko-fi",
+            "workstream_id": "assets_2d",
+            "capabilities": ["2d_asset", "design"],
+            "priority": 4,
+            "input_data": {"asset_type": asset_type, "style": style, "quantity": 2},
+        },
+        {
+            "title": f"Post {style} {asset_type} to Ko-fi (0% fees)",
+            "workstream_id": "kofi",
+            "capabilities": ["kofi", "digital_products"],
+            "priority": 4,
+            "input_data": {"asset_type": asset_type, "style": style, "price_usd": 3.99},
+        },
+    ]
+
+
 # ── Pipeline catalog ──────────────────────────────────────────────────────
 PIPELINES = {
     "etsy_boho":       lambda: _etsy_pipeline("boho", "printable"),
@@ -383,6 +424,15 @@ PIPELINES = {
     "gumroad_printable_minimal": lambda: _gumroad_pipeline("printable", "minimal"),
     "gumroad_svg_wildflower":    lambda: _gumroad_pipeline("svg_bundle", "wildflower"),
     "gumroad_logo_corporate":    lambda: _gumroad_pipeline("logo", "corporate"),
+    # Ko-fi 0% fee store pipelines
+    "kofi_printable_boho":       lambda: _kofi_pipeline("printable", "boho"),
+    "kofi_svg_minimal":          lambda: _kofi_pipeline("svg_bundle", "minimal"),
+    "kofi_planner_pastel":       lambda: _kofi_pipeline("planner", "pastel"),
+    # Reddit traffic pipelines (drives buyers to Gumroad/Ko-fi)
+    "reddit_printable_boho":     lambda: _reddit_pipeline("printable", "boho"),
+    "reddit_svg_wildflower":     lambda: _reddit_pipeline("svg_bundle", "wildflower"),
+    "reddit_game_assets":        lambda: _reddit_pipeline("game_asset", "low_poly"),
+    "reddit_logo_minimal":       lambda: _reddit_pipeline("logo", "minimal"),
 }
 
 # Revenue targets per workstream (daily $)

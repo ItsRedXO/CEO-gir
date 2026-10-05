@@ -13,6 +13,8 @@ from ..workers.delivery import ServiceDeliveryWorker, SalesTrackerWorker, Pricin
 from ..workers.email import ListBuildingWorker, EmailCampaignWorker
 from ..workers.asset_gen import Asset2DWorker, Asset3DWorker
 from ..workers.shorts import ShortsWorker
+from ..workers.reddit_traffic import RedditTrafficWorker
+from ..workers.kofi import KofiWorker
 
 
 @dataclass
@@ -188,6 +190,26 @@ WORKSTREAM_REGISTRY: dict[str, WorkstreamConfig] = {
         capabilities=["2d_asset", "design", "printable"],
         revenue_target_daily=8.0,
         icon="🛒",
+    ),
+    "kofi": WorkstreamConfig(
+        workstream_id="kofi",
+        name="Ko-fi Shop",
+        description="Digital products on Ko-fi — 0% platform fee, you keep 100%",
+        enabled=True,
+        worker_class=KofiWorker,
+        capabilities=["kofi", "digital_products", "shop", "0pct_fees"],
+        revenue_target_daily=5.0,
+        icon="☕",
+    ),
+    "traffic": WorkstreamConfig(
+        workstream_id="traffic",
+        name="Reddit Traffic",
+        description="Auto-post asset previews to relevant subreddits to drive buyers",
+        enabled=True,
+        worker_class=RedditTrafficWorker,
+        capabilities=["reddit_traffic", "social_media", "traffic", "promotion"],
+        revenue_target_daily=0.0,
+        icon="📣",
     ),
 }
 
