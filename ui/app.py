@@ -17,6 +17,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname
 _autopilot_thread: threading.Thread | None = None
 _autopilot_active = False
 _autopilot_interval = int(os.environ.get("CEO_CYCLE_INTERVAL", "30"))
+_last_cycle_at: float = 0.0  # epoch seconds
 
 
 def _autopilot_loop():
@@ -35,6 +36,7 @@ def _autopilot_loop():
                 log.info("Autopilot: queue empty — seeding pipelines")
                 pilot.seed()
             report = pilot.run_cycle()
+            _last_cycle_at = time.time()
             log.info(
                 "Cycle %d: created=%d dispatched=%d completed=%d rev=$%.2f",
                 pilot.cycle_count,
@@ -378,6 +380,8 @@ def api_autopilot_status():
     try:
         from ceo.db import get_total_metrics
         metrics = get_total_metrics(conn)
+        secs_since = round(time.time() - _last_cycle_at) if _last_cycle_at else None
+        next_in = max(0, _autopilot_interval - secs_since) if secs_since is not None else None
         return jsonify({
             "cycles_run": pilot.cycle_count,
             "is_running": _autopilot_active,
@@ -385,6 +389,8 @@ def api_autopilot_status():
             "total_revenue": metrics["total_revenue"],
             "task_counts": metrics["task_counts"],
             "interval_seconds": _autopilot_interval,
+            "seconds_since_cycle": secs_since,
+            "next_cycle_in": next_in,
         })
     finally:
         conn.close()
@@ -511,6 +517,58 @@ def api_assets():
                     "updated_at":   row["updated_at"],
                 })
         return jsonify(assets)
+    finally:
+        conn.close()
+
+
+@app.route("/api/listings")
+def api_listings():
+    """All completed listing/posting tasks with result details and any URLs."""
+    conn = get_db()
+    try:
+        import json as _json
+        rows = conn.execute(
+            """
+            SELECT task_id, title, workstream_id, status, result_json, created_at, updated_at
+            FROM ceo_tasks
+            WHERE status = 'completed'
+              AND result_json IS NOT NULL
+            ORDER BY updated_at DESC
+            LIMIT 100
+            """,
+        ).fetchall()
+        listings = []
+        for row in rows:
+            result = {}
+            if row["result_json"]:
+                try:
+                    result = _json.loads(row["result_json"]) if isinstance(row["result_json"], str) else row["result_json"]
+                except Exception:
+                    pass
+            url = (
+                result.get("url")
+                or result.get("listing_url")
+                or result.get("gig_url")
+                or result.get("product_url")
+                or result.get("preview_url")
+            )
+            if result.get("video_id"):
+                url = f"https://youtu.be/{result['video_id']}"
+            listings.append({
+                "task_id":       row["task_id"],
+                "title":         row["title"],
+                "workstream_id": row["workstream_id"],
+                "updated_at":    row["updated_at"],
+                "url":           url,
+                "price":         (result.get("economic_data") or {}).get("price_usd")
+                                  or result.get("price_usd")
+                                  or (result.get("gig") or {}).get("packages", {}).get("basic", {}).get("price"),
+                "platform":      result.get("platform") or row["workstream_id"],
+                "listing_ready": result.get("listing_ready", False),
+                "preview_url":   result.get("preview_url"),
+                "summary":       result.get("post_instructions") or result.get("description") or "",
+            })
+        return jsonify(listings)
     finally:
         conn.close()
 
