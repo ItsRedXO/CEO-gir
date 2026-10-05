@@ -381,8 +381,16 @@ class Asset2DWorker(BaseWorker):
             },
         }
         elapsed = time.monotonic() - start
+        posted = bool(gumroad_result.get("url"))
+        if not posted and not _GUMROAD_TOKEN:
+            return WorkerResult(
+                success=False,
+                output={"error": "not_configured", "message": "Set GUMROAD_ACCESS_TOKEN env var — restart app after setting it"},
+                duration_ms=int(elapsed * 1000),
+                worker_id=self.worker_id,
+            )
         return WorkerResult(
-            success=True,
+            success=posted,
             output=output,
             duration_ms=int(elapsed * 1000),
             worker_id=self.worker_id,
@@ -483,11 +491,11 @@ class Asset3DWorker(BaseWorker):
             "tags":        tags[:10],
             "preview_svg": preview_svg,
             "platforms":   spec["platforms"],
-            "listing_ready": True,
+            "listing_ready": False,
             "economic_data": {
-                "revenue":    price,
+                "revenue":    0.0,
                 "spend":      0.0,
-                "profit":     price,
+                "profit":     0.0,
                 "price_usd":  price,
                 "model_type": model_type,
             },
