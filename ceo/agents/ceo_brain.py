@@ -593,11 +593,13 @@ class CEOBrain:
 
             # Skip paused workstreams (unless they have zero tasks ever — then try once)
             ws_score = scores.get(ws_id)
-            if ws_score and ws_score.recommendation == "pause" and ws_score.total_tasks > 5:
-                continue
-
             current_active = active_by_ws.get(ws_id, 0)
             desired        = parallelism.get(ws_id, 2)
+
+            # Only skip paused workstreams that already have active tasks —
+            # never let a workstream go completely dead (empty queue = always retry).
+            if ws_score and ws_score.recommendation == "pause" and ws_score.total_tasks > 5 and current_active > 0:
+                continue
 
             if current_active >= desired * 4:
                 continue
