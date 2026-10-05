@@ -149,6 +149,43 @@
     .content { padding: 16px 20px; overflow-y: auto; }
 
     /* ── Revenue Meter ── */
+    /* Live Mission Panel */
+    .lm-step {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: 20px;
+      background: var(--surface2);
+      color: var(--muted);
+      border: 1px solid var(--border);
+      white-space: nowrap;
+      transition: all .3s;
+      letter-spacing: .3px;
+    }
+    .lm-step.active {
+      background: var(--accent);
+      color: #000;
+      border-color: var(--accent);
+      box-shadow: 0 0 10px var(--accent);
+    }
+    .lm-step.done {
+      background: var(--surface3);
+      color: var(--green);
+      border-color: var(--green);
+    }
+    .lm-connector {
+      flex: 1;
+      height: 2px;
+      background: var(--border);
+      transition: background .3s;
+    }
+    .lm-connector.done {
+      background: var(--green);
+    }
+    .lm-connector.active {
+      background: var(--accent);
+    }
+
     .revenue-meter {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -858,6 +895,38 @@
           title="Start/stop the autonomous CEO autopilot">
           ▶ AUTOPILOT ON
         </button>
+      </div>
+    </div>
+
+    <!-- Live Mission Panel -->
+    <div id="live-mission" style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:12px 16px;margin-bottom:14px">
+      <!-- Step pipeline -->
+      <div style="display:flex;align-items:center;gap:0;margin-bottom:10px" id="lm-steps">
+        <div class="lm-step" id="lm-s1" data-step="1">🧠 Plan</div>
+        <div class="lm-connector" id="lm-c1"></div>
+        <div class="lm-step" id="lm-s2" data-step="2">📋 Queue</div>
+        <div class="lm-connector" id="lm-c2"></div>
+        <div class="lm-step" id="lm-s3" data-step="3">⚡ Execute</div>
+        <div class="lm-connector" id="lm-c3"></div>
+        <div class="lm-step" id="lm-s4" data-step="4">✅ Done</div>
+      </div>
+      <!-- Current task name -->
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;white-space:nowrap">NOW</span>
+        <span id="lm-task-name" style="color:var(--text);font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:600px">Waiting for autopilot…</span>
+        <span id="lm-ws-badge" style="font-size:10px;background:var(--surface2);color:var(--accent);padding:2px 7px;border-radius:10px;white-space:nowrap"></span>
+      </div>
+      <!-- Progress bar -->
+      <div style="background:var(--surface2);border-radius:4px;height:6px;overflow:hidden;border:1px solid var(--border);margin-bottom:8px">
+        <div id="lm-bar" style="height:100%;background:var(--accent);border-radius:4px;transition:width .6s ease;width:0%"></div>
+      </div>
+      <!-- Footer stats -->
+      <div style="display:flex;gap:20px;font-size:10px;color:var(--muted)">
+        <span>Cycle <span id="lm-cycle" style="color:var(--text);font-weight:600">0</span></span>
+        <span><span id="lm-inprog" style="color:var(--accent);font-weight:600">0</span> running</span>
+        <span><span id="lm-queued-n" style="color:var(--text);font-weight:600">0</span> queued</span>
+        <span><span id="lm-done-n" style="color:var(--green);font-weight:600">0</span> completed all time</span>
+        <span id="lm-last-action" style="color:var(--muted);margin-left:auto;font-style:italic;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
       </div>
     </div>
 
@@ -1950,11 +2019,84 @@
     }).join('');
   }
 
+  // ── Live Mission Panel ──
+  function _setLMStep(active) {
+    // active: 1=Plan 2=Queue 3=Execute 4=Done
+    for (let i = 1; i <= 4; i++) {
+      const s = document.getElementById('lm-s' + i);
+      if (!s) continue;
+      s.classList.remove('active', 'done');
+      if (i < active) s.classList.add('done');
+      else if (i === active) s.classList.add('active');
+    }
+    for (let i = 1; i <= 3; i++) {
+      const c = document.getElementById('lm-c' + i);
+      if (!c) continue;
+      c.classList.remove('active', 'done');
+      if (i < active) c.classList.add('done');
+      else if (i === active) c.classList.add('active');
+    }
+    const pct = { 1: 5, 2: 35, 3: 68, 4: 100 }[active] || 0;
+    const bar = document.getElementById('lm-bar');
+    if (bar) bar.style.width = pct + '%';
+  }
+
+  async function updateLiveMission() {
+    try {
+      const [status, inProg, completed] = await Promise.all([
+        api('/api/autopilot/status'),
+        api('/api/tasks?status=in_progress'),
+        api('/api/tasks?status=completed'),
+      ]);
+
+      const cycle    = status.cycles_run || 0;
+      const tc       = status.task_counts || {};
+      const queued   = tc.queued || 0;
+      const doneAll  = tc.completed || 0;
+      const running  = inProg.length;
+
+      document.getElementById('lm-cycle').textContent    = cycle;
+      document.getElementById('lm-queued-n').textContent = queued;
+      document.getElementById('lm-done-n').textContent   = doneAll;
+      document.getElementById('lm-inprog').textContent   = running;
+
+      if (running > 0) {
+        const t = inProg[0];
+        document.getElementById('lm-task-name').textContent = t.title || 'Working…';
+        const wsBadge = document.getElementById('lm-ws-badge');
+        if (wsBadge) wsBadge.textContent = (t.workstream_id || '').replace(/_/g,' ');
+        _setLMStep(3);
+      } else if (queued > 0) {
+        document.getElementById('lm-task-name').textContent = `${queued} task${queued>1?'s':''} queued — executing next cycle…`;
+        const wsBadge = document.getElementById('lm-ws-badge');
+        if (wsBadge) wsBadge.textContent = '';
+        _setLMStep(2);
+      } else if (cycle > 0) {
+        document.getElementById('lm-task-name').textContent = 'CEO Brain generating next batch of tasks…';
+        const wsBadge = document.getElementById('lm-ws-badge');
+        if (wsBadge) wsBadge.textContent = '';
+        _setLMStep(1);
+      } else {
+        document.getElementById('lm-task-name').textContent = 'Press AUTOPILOT ON to start';
+        _setLMStep(0);
+      }
+
+      // Last completed task
+      const last = completed[0];
+      const lastEl = document.getElementById('lm-last-action');
+      if (lastEl && last) {
+        lastEl.textContent = '✓ ' + last.title;
+      }
+    } catch(e) {}
+  }
+
   // ── Init ──
   loadAll();
   loadAutopilotStatus();
+  updateLiveMission();
   setInterval(loadAll, 15000);
   setInterval(loadAutopilotStatus, 10000);
+  setInterval(updateLiveMission, 4000);
   logEntry('CEO GIR command center online', 'ok');
 </script>
 </body>
