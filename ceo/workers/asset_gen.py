@@ -23,24 +23,28 @@ def _post_to_gumroad(name: str, description: str, price_usd: float, preview_url:
     if not _GUMROAD_TOKEN:
         return {}
     try:
-        import urllib.request, urllib.parse, json as _json
+        import urllib.request, urllib.parse, urllib.error, json as _json
         price_cents = max(0, int(round(price_usd * 100)))
         payload = urllib.parse.urlencode({
             "access_token": _GUMROAD_TOKEN,
             "name": name[:100],
             "description": description[:500] if description else f"Professional {name} — instant digital download.",
             "price": price_cents,
-            "currency": "usd",
-            "url": preview_url or "",
             "published": "true",
         }).encode()
         req = urllib.request.Request(
-            "https://api.gumroad.com/v1/products",
+            "https://api.gumroad.com/v2/products",
             data=payload,
             method="POST",
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            data = _json.loads(resp.read())
+        try:
+            with urllib.request.urlopen(req, timeout=20) as resp:
+                data = _json.loads(resp.read())
+        except urllib.error.HTTPError as http_err:
+            body = http_err.read().decode(errors="replace")
+            log.error("Gumroad HTTP %s: %s", http_err.code, body)
+            return {}
         if data.get("success"):
             p = data["product"]
             log.info("Gumroad product created: %s — %s", p.get("name"), p.get("short_url"))
@@ -49,8 +53,10 @@ def _post_to_gumroad(name: str, description: str, price_usd: float, preview_url:
                 "url": p.get("short_url") or p.get("url"),
                 "gumroad_id": p.get("id"),
             }
+        else:
+            log.error("Gumroad rejected: %s", data.get("message", data))
     except Exception as e:
-        log.warning("Gumroad post failed: %s", e)
+        log.error("Gumroad post failed: %s", e)
     return {}
 
 def _pollinations_url(asset_type: str, style: str, title: str) -> str:
