@@ -4,7 +4,22 @@ Produces structured listing data that can be submitted via platform APIs.
 """
 from __future__ import annotations
 import time
+import urllib.parse
 from .base import BaseWorker, WorkerResult
+
+
+def _fiverr_preview_url(service_type: str) -> str:
+    """Generate a Pollinations image for the Fiverr gig thumbnail."""
+    prompt_map = {
+        "logo_design":      "professional minimalist logo design portfolio showcase, dark background, gold accent",
+        "social_media":     "vibrant social media graphics pack instagram posts templates colorful",
+        "video_editing":    "professional video editing timeline cinematic dark aesthetic",
+        "content_writing":  "creative writing workspace laptop coffee notebook aesthetic minimal",
+        "thumbnail_design": "eye-catching youtube thumbnail design bold colors pop art style",
+    }
+    prompt = prompt_map.get(service_type, f"professional {service_type.replace('_',' ')} service portfolio")
+    encoded = urllib.parse.quote(prompt)
+    return f"https://image.pollinations.ai/prompt/{encoded}?width=800&height=450&nologo=true"
 
 
 class EtsyListingWorker(BaseWorker):
@@ -98,24 +113,52 @@ class FiverrGigWorker(BaseWorker):
         tier = input_data.get("tier", "basic")
         price_usd = float(input_data.get("price_usd", 15.0))
 
+        title       = self._generate_gig_title(service_type)
+        description = self._generate_gig_description(service_type)
+        packages    = self._generate_packages(service_type, price_usd)
+        tags        = self._generate_tags(service_type)
+        category    = self._get_category(service_type)
+        preview_url = _fiverr_preview_url(service_type)
+        rev_est     = self._estimate_revenue(price_usd, service_type)
+
         gig = {
-            "title": self._generate_gig_title(service_type),
-            "description": self._generate_gig_description(service_type),
-            "packages": self._generate_packages(service_type, price_usd),
-            "tags": self._generate_tags(service_type),
-            "category": self._get_category(service_type),
+            "title":           title,
+            "description":     description,
+            "packages":        packages,
+            "tags":            tags,
+            "category":        category,
             "delivery_time_days": self._get_delivery_days(service_type, tier),
-            "status": "draft",
-            "estimated_monthly_revenue": self._estimate_revenue(price_usd, service_type),
+            "preview_url":     preview_url,
+            "post_url":        "https://www.fiverr.com/users/seller_account/manage_gigs",
+            "status":          "ready_to_post",
+            "listing_ready":   True,
+            "estimated_monthly_revenue": rev_est,
         }
 
         duration_ms = int((time.monotonic() - start) * 1000)
         return WorkerResult(
             success=True,
-            output={"gig": gig, "platform": "fiverr", "next_step": "review_and_publish"},
+            output={
+                "gig":          gig,
+                "platform":     "fiverr",
+                "preview_url":  preview_url,
+                "listing_ready": True,
+                "next_step":    "copy_and_post_to_fiverr",
+                "post_instructions": (
+                    f"1. Go to fiverr.com → Selling → Gigs → Create a New Gig\n"
+                    f"2. Category: {category}\n"
+                    f"3. Title: {title}\n"
+                    f"4. Tags: {', '.join(tags)}\n"
+                    f"5. Packages: Basic ${packages['basic']['price']} / "
+                    f"Standard ${packages['standard']['price']:.0f} / "
+                    f"Premium ${packages['premium']['price']:.0f}\n"
+                    f"6. Description: (see gig.description)\n"
+                    f"7. Upload the preview image from preview_url"
+                ),
+            },
             duration_ms=duration_ms,
             economic_data={
-                "revenue_estimate": gig["estimated_monthly_revenue"],
+                "revenue_estimate": rev_est,
                 "spend": 0.0,
             },
         )

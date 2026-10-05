@@ -84,16 +84,6 @@ WORKSTREAM_REGISTRY: dict[str, WorkstreamConfig] = {
         revenue_target_daily=25.0,
         icon="🔗",
     ),
-    "youtube": WorkstreamConfig(
-        workstream_id="youtube",
-        name="YouTube/TikTok",
-        description="Video content and social monetization",
-        enabled=True,
-        worker_class=SocialMediaWorker,
-        capabilities=["video", "content", "youtube", "tiktok", "social_media"],
-        revenue_target_daily=30.0,
-        icon="🎬",
-    ),
     "assets": WorkstreamConfig(
         workstream_id="assets",
         name="Assets",

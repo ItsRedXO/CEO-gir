@@ -376,7 +376,7 @@ def api_assets():
             """
             SELECT task_id, title, workstream_id, status, result_json, updated_at
             FROM ceo_tasks
-            WHERE workstream_id IN ('assets_2d','assets_3d','assets','youtube','gumroad')
+            WHERE workstream_id IN ('assets_2d','assets_3d','assets','youtube','gumroad','fiverr','etsy')
               AND status = 'completed'
               AND result_json IS NOT NULL
             ORDER BY updated_at DESC
@@ -391,8 +391,29 @@ def api_assets():
                     result = _json.loads(row["result_json"]) if isinstance(row["result_json"], str) else row["result_json"]
                 except Exception:
                     pass
+            # Fiverr gig fields
+            if row["workstream_id"] == "fiverr":
+                gig = result.get("gig", {})
+                assets.append({
+                    "task_id":       row["task_id"],
+                    "title":         row["title"],
+                    "workstream_id": row["workstream_id"],
+                    "asset_type":    "fiverr_gig",
+                    "style":         gig.get("category", ""),
+                    "preview_svg":   None,
+                    "preview_url":   result.get("preview_url") or gig.get("preview_url"),
+                    "formats":       ["Fiverr Gig"],
+                    "platforms":     ["fiverr"],
+                    "listing_ready": result.get("listing_ready", True),
+                    "price_usd":     gig.get("packages", {}).get("basic", {}).get("price", 15),
+                    "gig_title":     gig.get("title", ""),
+                    "gig_tags":      gig.get("tags", []),
+                    "packages":      gig.get("packages", {}),
+                    "post_instructions": result.get("post_instructions", ""),
+                    "updated_at":    row["updated_at"],
+                })
             # YouTube Shorts special fields
-            if row["workstream_id"] == "youtube":
+            elif row["workstream_id"] == "youtube":
                 assets.append({
                     "task_id":      row["task_id"],
                     "title":        row["title"],
@@ -457,6 +478,33 @@ def api_stores():
                 "free":     platform in ("gumroad", "itch.io", "youtube"),
             })
         return jsonify(stores)
+    finally:
+        conn.close()
+
+
+@app.route("/api/fiverr/post", methods=["POST"])
+def api_fiverr_post():
+    """Launch Playwright to auto-fill a Fiverr gig form. Human clicks Publish."""
+    data = request.get_json(force=True) or {}
+    task_id = data.get("task_id")
+    conn = get_db()
+    try:
+        import json as _json
+        gig_data = {}
+        if task_id:
+            task = get_task(conn, task_id)
+            if task and task.get("result_json"):
+                result = _json.loads(task["result_json"]) if isinstance(task["result_json"], str) else task["result_json"]
+                gig_data = result.get("gig", {})
+        if not gig_data:
+            gig_data = data.get("gig", {})
+        if not gig_data:
+            return jsonify({"error": "No gig data provided"}), 400
+        from ceo.workers.fiverr_post import post_gig_to_fiverr
+        result = post_gig_to_fiverr(gig_data, headless=False)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
     finally:
         conn.close()
 
