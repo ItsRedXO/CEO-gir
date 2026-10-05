@@ -2316,27 +2316,28 @@
       const wsId   = ws.workstream_id;
       if (!wsId || !_OFFICES[wsId]) continue;
 
-      const counts  = ws.task_counts || {};
-      const active  = (counts.in_progress || 0) + (counts.assigned || 0);
-      const failed  = counts.failed || 0;
-      const prevF   = _prevFail[wsId] || 0;
-      const enabled = ws.enabled !== false;
+      const counts   = ws.task_counts || {};
+      const active   = (counts.in_progress || 0) + (counts.assigned || 0);
+      const failed   = counts.failed || 0;
+      const isFirst  = _prevFail[wsId] === undefined; // first poll — establish baseline, no stuck
+      const prevF    = isFirst ? failed : _prevFail[wsId];
+      const enabled  = ws.enabled !== false;
 
       // Update office status badge
       const box = document.getElementById('office-box-' + wsId);
       if (box) {
         box.className = 'office-box';
-        if (!enabled)            box.classList.add('locked');
-        else if (failed > prevF) box.classList.add('stuck');
-        else if (active > 0)     box.classList.add('active');
+        if (!enabled)                        box.classList.add('locked');
+        else if (!isFirst && failed > prevF) box.classList.add('stuck');
+        else if (active > 0)                 box.classList.add('active');
       }
       const tasksEl = document.getElementById('office-tasks-' + wsId);
       if (tasksEl) {
         tasksEl.textContent = active > 0 ? active + '▶' : counts.queued > 0 ? counts.queued + 'q' : '—';
       }
 
-      // Drive agent movement
-      if (enabled) {
+      // Drive agent movement — skip stuck check on first poll (just sets baseline)
+      if (enabled && !isFirst) {
         const agState = _agents[wsId]?.state || 'hub';
         if (failed > prevF) {
           _stuckAgent(wsId);
@@ -2345,6 +2346,9 @@
         } else if (active === 0 && agState === 'working') {
           _recallAgent(wsId);
         }
+      } else if (enabled && isFirst && active > 0) {
+        // First poll: dispatch if there's already active work
+        _dispatchAgent(wsId);
       }
 
       _prevFail[wsId] = failed;
