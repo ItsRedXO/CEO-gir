@@ -28,7 +28,7 @@
       background: var(--bg);
       color: var(--text);
       font-family: var(--font);
-      font-size: 12px;
+      font-size: 14px;
       min-height: 100vh;
       overflow-x: hidden;
     }
@@ -60,17 +60,17 @@
       position: sticky; top: 0; z-index: 100;
     }
     .logo {
-      font-size: 16px; font-weight: bold; letter-spacing: 3px;
+      font-size: 18px; font-weight: bold; letter-spacing: 3px;
       color: var(--accent);
       text-shadow: 0 0 12px rgba(0,212,255,.6);
     }
     .logo em { color: var(--accent2); font-style: normal; }
     .header-center { display: flex; gap: 20px; }
     .hstat { display: flex; flex-direction: column; align-items: center; }
-    .hstat-v { font-size: 15px; font-weight: bold; color: var(--text); }
-    .hstat-l { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+    .hstat-v { font-size: 17px; font-weight: bold; color: var(--text); }
+    .hstat-l { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
     .header-right { display: flex; align-items: center; gap: 12px; }
-    .sys-status { display: flex; align-items: center; gap: 5px; font-size: 10px; }
+    .sys-status { display: flex; align-items: center; gap: 5px; font-size: 12px; }
     .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
     .dot.ok    { background: var(--green); animation: pulse 2s infinite; }
     .dot.warn  { background: var(--yellow); animation: pulse 1s infinite; }
@@ -97,7 +97,7 @@
       overflow-y: auto;
     }
     .sb-title {
-      color: var(--muted); font-size: 9px;
+      color: var(--muted); font-size: 11px;
       text-transform: uppercase; letter-spacing: 1.5px;
       margin-bottom: 8px; padding-bottom: 4px;
       border-bottom: 1px solid var(--border);
@@ -110,19 +110,19 @@
       border-radius: 5px;
       padding: 8px 10px;
       margin-bottom: 5px;
-      cursor: default;
+      cursor: pointer;
       transition: border-color .15s;
       animation: slide-in .2s ease;
     }
     .ws-card:hover { border-color: var(--accent); }
     .ws-card-top { display: flex; align-items: center; justify-content: space-between; }
-    .ws-name { font-size: 11px; font-weight: bold; }
-    .ws-icon { font-size: 13px; }
-    .ws-dot { width: 5px; height: 5px; border-radius: 50%; }
+    .ws-name { font-size: 13px; font-weight: bold; }
+    .ws-icon { font-size: 15px; }
+    .ws-dot { width: 6px; height: 6px; border-radius: 50%; }
     .ws-dot.on  { background: var(--green); animation: pulse 3s infinite; }
     .ws-dot.off { background: var(--muted); }
-    .ws-stats { color: var(--muted); font-size: 9px; margin-top: 4px; }
-    .ws-rev { color: var(--yellow); font-size: 9px; }
+    .ws-stats { color: var(--muted); font-size: 11px; margin-top: 4px; }
+    .ws-rev { color: var(--yellow); font-size: 11px; }
 
     .log-panel {
       background: var(--surface2);
@@ -221,9 +221,9 @@
     .sc-purple::before { background: var(--accent2); }
     .sc-yellow::before { background: var(--yellow); }
     .sc-red::before    { background: var(--red); }
-    .stat-label { color: var(--muted); font-size: 9px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
-    .stat-value { font-size: 20px; font-weight: bold; }
-    .stat-sub { color: var(--muted); font-size: 9px; margin-top: 3px; }
+    .stat-label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
+    .stat-value { font-size: 26px; font-weight: bold; }
+    .stat-sub { color: var(--muted); font-size: 11px; margin-top: 3px; }
 
     /* ── Workstream grid ── */
     .ws-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 16px; }
@@ -249,7 +249,7 @@
       display: flex; align-items: center; justify-content: space-between;
       margin-bottom: 8px;
     }
-    .section-title { color: var(--accent); font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; }
+    .section-title { color: var(--accent); font-size: 12px; text-transform: uppercase; letter-spacing: 1.5px; }
     .badge {
       background: var(--surface2); border: 1px solid var(--border);
       padding: 2px 8px; border-radius: 10px; font-size: 9px; font-weight: bold;
@@ -262,15 +262,15 @@
     /* ── Tables ── */
     .tbl-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
     table { width: 100%; border-collapse: collapse; }
-    th { text-align: left; color: var(--muted); font-size: 9px; text-transform: uppercase; letter-spacing: 1px; padding: 8px 10px; border-bottom: 1px solid var(--border); background: var(--surface2); }
-    td { padding: 7px 10px; border-bottom: 1px solid rgba(26,45,69,.5); vertical-align: middle; }
+    th { text-align: left; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; padding: 10px 12px; border-bottom: 1px solid var(--border); background: var(--surface2); }
+    td { padding: 9px 12px; border-bottom: 1px solid rgba(26,45,69,.5); vertical-align: middle; font-size: 13px; }
     tr:last-child td { border-bottom: none; }
     tr:hover td { background: var(--surface2); }
     .empty-row td { color: var(--muted); text-align: center; padding: 20px; }
 
     .status-pill {
-      display: inline-block; padding: 2px 8px;
-      border-radius: 10px; font-size: 9px; font-weight: bold; text-transform: uppercase;
+      display: inline-block; padding: 3px 10px;
+      border-radius: 10px; font-size: 11px; font-weight: bold; text-transform: uppercase;
       letter-spacing: .5px;
     }
     .s-queued          { background:#0f2a4a; color:#60a5fa; }
@@ -761,13 +761,14 @@
       padding: 8px;
       border-top: 1px solid var(--border);
     }
-    .asset-name { font-size: 10px; color: var(--text); font-weight: bold; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .asset-tags { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 5px; }
-    .asset-tag { font-size: 8px; padding: 1px 5px; border-radius: 3px; background: var(--surface3); color: var(--muted); }
+    .asset-name { font-size: 12px; color: var(--text); font-weight: bold; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .asset-tags { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 6px; }
+    .asset-tag { font-size: 10px; padding: 2px 6px; border-radius: 3px; background: var(--surface3); color: var(--muted); }
     .asset-tag.ws-2d { background: rgba(124,58,237,.25); color: #a78bfa; }
     .asset-tag.ws-3d { background: rgba(0,212,255,.15); color: var(--accent); }
-    .asset-price { font-size: 11px; color: var(--green); font-weight: bold; }
-    .asset-platforms { font-size: 8px; color: var(--muted); margin-top: 3px; }
+    .asset-price { font-size: 13px; color: var(--green); font-weight: bold; }
+    .asset-platforms { font-size: 10px; color: var(--muted); margin-top: 3px; }
+    .asset-card { cursor: pointer; }
 
     /* ── Store cards ── */
     .store-card {
@@ -1192,6 +1193,24 @@
   </div>
 </div>
 
+<!-- ── Asset Detail Modal ── -->
+<div class="modal-backdrop" id="asset-modal">
+  <div class="modal" style="max-width:660px;width:92vw">
+    <button class="modal-close" onclick="hideAssetModal()">✕</button>
+    <div class="modal-title" id="amod-title">Asset Detail</div>
+    <div id="amod-preview" style="
+      width:100%;aspect-ratio:16/9;
+      background:var(--surface2);border-radius:6px;
+      overflow:hidden;margin-bottom:14px;
+      display:flex;align-items:center;justify-content:center;
+      border:1px solid var(--border);
+    "></div>
+    <div id="amod-meta" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px"></div>
+    <div id="amod-url-row"></div>
+    <div id="amod-instructions" style="margin-top:10px"></div>
+  </div>
+</div>
+
 <!-- ── Toast ── -->
 <div id="toast"></div>
 
@@ -1288,7 +1307,7 @@
       const counts = ws.task_counts || {};
       const active = (counts.in_progress || 0) + (counts.assigned || 0);
       const total  = ws.total_tasks || 0;
-      return `<div class="ws-card">
+      return `<div class="ws-card" onclick="filterByWorkstream('${ws.workstream_id}','${ws.name}')" title="Click to filter tasks">
         <div class="ws-card-top">
           <span class="ws-icon">${ws.icon}</span>
           <span class="ws-name">${ws.name}</span>
@@ -1469,6 +1488,66 @@
     } catch(e) {}
   }
 
+  // ── Asset Detail Modal ──
+  function showAssetModal(a) {
+    document.getElementById('amod-title').textContent = a.title || 'Asset Detail';
+
+    const preview = document.getElementById('amod-preview');
+    if (a.asset_type === 'youtube_short') {
+      preview.innerHTML = a.video_id
+        ? `<a href="https://youtu.be/${a.video_id}" target="_blank" style="color:var(--accent);font-size:48px;text-decoration:none">▶️</a>`
+        : `<div style="font-size:48px;opacity:.3">▶️</div>`;
+    } else if (a.preview_url) {
+      preview.innerHTML = `<img src="${a.preview_url}" alt="${a.title}" style="width:100%;height:100%;object-fit:cover">`;
+    } else if (a.preview_svg) {
+      preview.innerHTML = a.preview_svg;
+    } else {
+      preview.innerHTML = `<div style="font-size:56px;opacity:.25">${a.workstream_id === 'assets_3d' ? '🧊' : '🎨'}</div>`;
+    }
+
+    const metaField = (label, value, color) =>
+      `<div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">${label}</div>` +
+      `<div style="font-size:13px;font-weight:bold;${color ? `color:${color}` : ''}">${value || '—'}</div></div>`;
+
+    document.getElementById('amod-meta').innerHTML = [
+      metaField('Type',       (a.asset_type||'').replace(/_/g,' ')),
+      metaField('Style',      a.style || '—'),
+      metaField('Price',      a.price_usd ? `$${Number(a.price_usd).toFixed(2)}` : 'Free', 'var(--green)'),
+      metaField('Platform',   (a.platforms||[]).slice(0,3).join(', ') || a.platform || '—'),
+      metaField('Status',     a.listing_ready ? '✓ Ready to Post' : 'Generated', a.listing_ready ? 'var(--green)' : 'var(--yellow)'),
+      metaField('Workstream', a.workstream_id || '—'),
+    ].join('');
+
+    const urlRow = document.getElementById('amod-url-row');
+    urlRow.innerHTML = a.preview_url
+      ? `<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Preview URL (click to copy)</div>
+         <input class="form-input" value="${a.preview_url}" readonly onclick="this.select();document.execCommand('copy');toast('URL copied','ok')" style="font-size:11px;width:100%;cursor:pointer">`
+      : '';
+
+    const instrRow = document.getElementById('amod-instructions');
+    instrRow.innerHTML = a.post_instructions
+      ? `<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Post Instructions</div>
+         <div style="background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:10px;font-size:12px;color:var(--text);white-space:pre-wrap">${a.post_instructions}</div>`
+      : '';
+
+    document.getElementById('asset-modal').classList.add('open');
+  }
+  function hideAssetModal() {
+    document.getElementById('asset-modal').classList.remove('open');
+  }
+
+  // ── Workstream click-to-filter ──
+  function filterByWorkstream(wsId, wsName) {
+    // Filter _lastTasks client-side by workstream
+    const filtered = wsId ? _lastTasks.filter(t => t.workstream_id === wsId) : _lastTasks;
+    renderTaskTable(filtered);
+    // Scroll tasks section into view
+    const tbl = document.getElementById('task-tbody');
+    if (tbl) tbl.closest('div.section')?.scrollIntoView({behavior:'smooth', block:'start'});
+    toast(`Tasks: ${wsName || wsId} (${filtered.length})`, 'inf');
+    logEntry(`filtered tasks → ${wsId || 'all'} (${filtered.length})`, 'inf');
+  }
+
   // ── Create Task ──
   function showCreateModal() { document.getElementById('create-modal').classList.add('open'); }
   function hideCreateModal() { document.getElementById('create-modal').classList.remove('open'); }
@@ -1549,7 +1628,7 @@
 
   // ── Modal keyboard shortcut ──
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') hideCreateModal();
+    if (e.key === 'Escape') { hideCreateModal(); hideAssetModal(); }
     if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); showCreateModal(); }
   });
 
@@ -1664,8 +1743,9 @@
         const wsClass = isYT ? '' : is3d ? 'ws-3d' : 'ws-2d';
         const platforms = (a.platforms || []).slice(0,3).join(' · ') || '—';
         const price = a.price_usd ? `$${Number(a.price_usd).toFixed(2)}` : '';
+        const aEncoded = encodeURIComponent(JSON.stringify(a));
         return `
-          <div class="asset-card">
+          <div class="asset-card" onclick="showAssetModal(JSON.parse(decodeURIComponent('${aEncoded}')))" title="Click to expand">
             <div class="asset-preview">${preview}</div>
             <div class="asset-meta">
               <div class="asset-name" title="${a.title}">${a.title}</div>
