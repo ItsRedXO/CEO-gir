@@ -573,6 +573,56 @@ def api_listings():
         conn.close()
 
 
+@app.route("/api/flush-old-tasks", methods=["POST"])
+def api_flush_old_tasks():
+    """Delete all tasks from disabled/simulation workstreams and reset fake completed data."""
+    REAL_WORKSTREAMS = {"assets_2d", "gumroad", "traffic"}
+    conn = get_db()
+    try:
+        # Delete tasks that belong to disabled workstreams
+        cur = conn.execute(
+            "DELETE FROM ceo_tasks WHERE workstream_id NOT IN ('assets_2d','gumroad','traffic')"
+        )
+        deleted_stale = cur.rowcount
+
+        # Also delete any tasks from real workstreams that failed or have no real listing URL
+        import json as _json
+        fake_ids = []
+        rows = conn.execute(
+            "SELECT task_id, result_json FROM ceo_tasks WHERE status='completed'"
+        ).fetchall()
+        for row in rows:
+            result = {}
+            try:
+                result = _json.loads(row["result_json"]) if row["result_json"] else {}
+            except Exception:
+                pass
+            # A real listing has a proper URL (not just a preview_url placeholder)
+            url = result.get("url") or result.get("listing_url") or result.get("product_url")
+            if not url or "gumroad.com" not in str(url):
+                fake_ids.append(row["task_id"])
+
+        if fake_ids:
+            conn.execute(
+                f"DELETE FROM ceo_tasks WHERE task_id IN ({','.join('?' for _ in fake_ids)})",
+                fake_ids,
+            )
+
+        # Reset revenue to zero — old data was fake
+        conn.execute("UPDATE ceo_state SET value='0' WHERE key='total_revenue'")
+        conn.execute("UPDATE ceo_state SET value='0' WHERE key='today_revenue'")
+        conn.commit()
+
+        return jsonify({
+            "ok": True,
+            "deleted_stale_workstream_tasks": deleted_stale,
+            "deleted_fake_completed_tasks": len(fake_ids),
+            "message": "Queue flushed. CEO now runs on real Gumroad pipeline only.",
+        })
+    finally:
+        conn.close()
+
+
 @app.route("/api/stores")
 def api_stores():
     """Return active store status across all platforms."""

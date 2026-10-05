@@ -889,6 +889,7 @@
       </div>
       <div style="display:flex;gap:8px;align-items:center">
         <button class="btn btn-outline btn-sm" onclick="seedPipelines()" title="Seed all profit pipelines">🌱 Seed</button>
+        <button class="btn btn-outline btn-sm" onclick="flushOldTasks()" title="Purge stale simulation tasks from DB" style="border-color:#e74c3c;color:#e74c3c">🗑 Flush Old Data</button>
         <button id="autopilot-toggle-btn"
           onclick="toggleAutopilot()"
           style="font-size:14px;padding:8px 22px;border-radius:6px;font-weight:700;letter-spacing:.5px;border:2px solid var(--green);background:var(--green);color:#000;cursor:pointer;transition:all .2s"
@@ -1993,6 +1994,16 @@
       const ceoCycles = document.getElementById('ceo-cycles');
       if (ceoCycles) ceoCycles.textContent = data.cycles_run || 0;
     } catch(e) {}
+  }
+
+  async function flushOldTasks() {
+    if (!confirm('Delete all stale simulation data and reset revenue to $0?\nThis keeps only real Gumroad tasks.')) return;
+    try {
+      const r = await api('/api/flush-old-tasks', { method: 'POST', body: '{}' });
+      toast(`Flushed: ${r.deleted_stale_workstream_tasks + r.deleted_fake_completed_tasks} old tasks removed`, 'ok');
+      logEntry('Old simulation data purged — CEO running real pipeline only', 'ok');
+      await loadAll();
+    } catch(e) { toast('Flush failed: ' + e.message, 'err'); }
   }
 
   async function seedPipelines() {
