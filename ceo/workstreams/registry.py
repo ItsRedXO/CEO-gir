@@ -4,6 +4,10 @@ from typing import Optional
 
 from ..workers.base import BaseWorker
 from ..workers.research import ResearchWorker, ContentWorker, OptimizationWorker
+from ..workers.listing import EtsyListingWorker, FiverrGigWorker
+from ..workers.asset import DigitalAssetWorker, ContentAssetWorker
+from ..workers.marketing import AffiliateWorker, SEOWorker, SocialMediaWorker
+from ..workers.analytics import PerformanceAnalyticsWorker, RevenueAnalyticsWorker
 
 
 @dataclass
@@ -15,6 +19,8 @@ class WorkstreamConfig:
     worker_class: type = None
     capabilities: list[str] = field(default_factory=list)
     priority_boost: int = 0
+    revenue_target_daily: float = 0.0
+    icon: str = "🔷"
 
 
 WORKSTREAM_REGISTRY: dict[str, WorkstreamConfig] = {
@@ -24,6 +30,7 @@ WORKSTREAM_REGISTRY: dict[str, WorkstreamConfig] = {
         description="Market research and opportunity discovery",
         worker_class=ResearchWorker,
         capabilities=["research", "analysis"],
+        icon="🔍",
     ),
     "content": WorkstreamConfig(
         workstream_id="content",
@@ -31,6 +38,8 @@ WORKSTREAM_REGISTRY: dict[str, WorkstreamConfig] = {
         description="Content creation for affiliate/SEO/social",
         worker_class=ContentWorker,
         capabilities=["content", "writing", "seo"],
+        revenue_target_daily=10.0,
+        icon="✍️",
     ),
     "optimization": WorkstreamConfig(
         workstream_id="optimization",
@@ -38,34 +47,75 @@ WORKSTREAM_REGISTRY: dict[str, WorkstreamConfig] = {
         description="ROI optimization and scaling",
         worker_class=OptimizationWorker,
         capabilities=["optimization", "scaling"],
+        icon="⚡",
     ),
     "etsy": WorkstreamConfig(
         workstream_id="etsy",
         name="Etsy",
-        description="Etsy store management and listings",
-        enabled=False,
-        capabilities=["listing", "marketplace"],
+        description="Digital products on Etsy",
+        enabled=True,
+        worker_class=EtsyListingWorker,
+        capabilities=["listing", "marketplace", "etsy", "digital_products"],
+        revenue_target_daily=20.0,
+        icon="🛍️",
     ),
     "fiverr": WorkstreamConfig(
         workstream_id="fiverr",
         name="Fiverr",
-        description="Fiverr gig management and delivery",
-        enabled=False,
-        capabilities=["freelance", "service_delivery"],
+        description="Freelance services on Fiverr",
+        enabled=True,
+        worker_class=FiverrGigWorker,
+        capabilities=["freelance", "service_delivery", "fiverr", "gig"],
+        revenue_target_daily=15.0,
+        icon="💼",
     ),
     "affiliate": WorkstreamConfig(
         workstream_id="affiliate",
         name="Affiliate",
         description="Affiliate marketing and content monetization",
-        enabled=False,
-        capabilities=["affiliate", "content", "marketing"],
+        enabled=True,
+        worker_class=AffiliateWorker,
+        capabilities=["affiliate", "content", "marketing", "monetization"],
+        revenue_target_daily=25.0,
+        icon="🔗",
     ),
     "youtube": WorkstreamConfig(
         workstream_id="youtube",
-        name="YouTube",
-        description="YouTube channel management and monetization",
-        enabled=False,
-        capabilities=["video", "content", "youtube"],
+        name="YouTube/TikTok",
+        description="Video content and social monetization",
+        enabled=True,
+        worker_class=SocialMediaWorker,
+        capabilities=["video", "content", "youtube", "tiktok", "social_media"],
+        revenue_target_daily=30.0,
+        icon="🎬",
+    ),
+    "assets": WorkstreamConfig(
+        workstream_id="assets",
+        name="Assets",
+        description="Digital asset creation and management",
+        enabled=True,
+        worker_class=DigitalAssetWorker,
+        capabilities=["asset_creation", "digital_products", "design", "templates"],
+        icon="🎨",
+    ),
+    "analytics": WorkstreamConfig(
+        workstream_id="analytics",
+        name="Analytics",
+        description="Performance metrics and reporting",
+        enabled=True,
+        worker_class=PerformanceAnalyticsWorker,
+        capabilities=["analytics", "reporting", "metrics", "performance"],
+        icon="📊",
+    ),
+    "seo": WorkstreamConfig(
+        workstream_id="seo",
+        name="SEO",
+        description="Search engine optimization",
+        enabled=True,
+        worker_class=SEOWorker,
+        capabilities=["seo", "keyword_research", "content_optimization"],
+        revenue_target_daily=8.0,
+        icon="📈",
     ),
 }
 
@@ -76,6 +126,10 @@ def get_workstream(workstream_id: str) -> Optional[WorkstreamConfig]:
 
 def get_enabled_workstreams() -> list[WorkstreamConfig]:
     return [ws for ws in WORKSTREAM_REGISTRY.values() if ws.enabled]
+
+
+def get_all_workstreams() -> list[WorkstreamConfig]:
+    return list(WORKSTREAM_REGISTRY.values())
 
 
 def find_worker_for_capabilities(required_capabilities: list[str]) -> Optional[BaseWorker]:
@@ -108,3 +162,19 @@ def route_task(task: dict) -> Optional[BaseWorker]:
                 return worker
 
     return find_worker_for_capabilities(required)
+
+
+def get_workstream_summary() -> list[dict]:
+    """Returns a dashboard-ready summary of all workstreams."""
+    return [
+        {
+            "workstream_id": ws.workstream_id,
+            "name": ws.name,
+            "description": ws.description,
+            "enabled": ws.enabled,
+            "icon": ws.icon,
+            "revenue_target_daily": ws.revenue_target_daily,
+            "has_worker": ws.worker_class is not None,
+        }
+        for ws in get_all_workstreams()
+    ]

@@ -22,6 +22,9 @@ from ceo.orchestration import (
 )
 from ceo.safety import SafetyPolicy
 from ceo.replanning import get_ceo_decision_context, get_next_queued_tasks
+from ceo.health import run_health_check, health_to_dict
+from ceo.dispatcher import get_dispatcher
+from ceo.workstreams.registry import get_workstream_summary
 
 DB_PATH = os.environ.get("CEO_GIR_DB", "ceo_gir.db")
 POLICY = SafetyPolicy(
@@ -174,6 +177,88 @@ def api_daily_revenue():
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         revenue = get_daily_revenue(conn, today)
         return jsonify({"date": today, "revenue": revenue})
+    finally:
+        conn.close()
+
+
+@app.route("/api/health")
+def api_health():
+    conn = get_db()
+    try:
+        health = run_health_check(conn)
+        return jsonify(health_to_dict(health))
+    finally:
+        conn.close()
+
+
+@app.route("/api/workstreams")
+def api_workstreams():
+    conn = get_db()
+    try:
+        summary = get_workstream_summary()
+        # Enrich with live task counts per workstream
+        for ws in summary:
+            wid = ws["workstream_id"]
+            rows = conn.execute(
+                "SELECT status, COUNT(*) as cnt FROM ceo_tasks WHERE workstream_id=? GROUP BY status",
+                (wid,),
+            ).fetchall()
+            counts = {r["status"]: r["cnt"] for r in rows}
+            ws["task_counts"] = counts
+            ws["total_tasks"] = sum(counts.values())
+        return jsonify(summary)
+    finally:
+        conn.close()
+
+
+@app.route("/api/workers")
+def api_workers():
+    dispatcher = get_dispatcher()
+    return jsonify(dispatcher.get_worker_stats())
+
+
+@app.route("/api/tasks/<task_id>/dispatch", methods=["POST"])
+def api_dispatch_task(task_id):
+    conn = get_db()
+    try:
+        task = get_task(conn, task_id)
+        if not task:
+            abort(404)
+        if task["status"] != "assigned":
+            return jsonify({"error": f"Task must be 'assigned' to dispatch, got '{task['status']}'"}), 400
+        dispatcher = get_dispatcher()
+        result = dispatcher.dispatch(conn, task)
+        conn.commit()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+    finally:
+        conn.close()
+
+
+@app.route("/api/tasks/<task_id>/run", methods=["POST"])
+def api_run_task(task_id):
+    """Convenience: assign + dispatch in one call for tasks that don't need approval."""
+    conn = get_db()
+    try:
+        task = get_task(conn, task_id)
+        if not task:
+            abort(404)
+        if task["status"] == "queued":
+            assign_result = assign_task(conn, task_id, policy=POLICY)
+            conn.commit()
+            if assign_result["status"] == "blocked_approval":
+                return jsonify({**assign_result, "task_id": task_id}), 202
+            # Re-fetch after status change
+            task = get_task(conn, task_id)
+        if task["status"] == "assigned":
+            dispatcher = get_dispatcher()
+            result = dispatcher.dispatch(conn, task)
+            conn.commit()
+            return jsonify(result)
+        return jsonify({"task_id": task_id, "status": task["status"], "message": "no action taken"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
     finally:
         conn.close()
 

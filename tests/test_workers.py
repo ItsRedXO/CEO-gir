@@ -104,13 +104,15 @@ class TestWorkstreamRegistry:
         ws = get_workstream("research")
         assert ws.enabled is True
 
-    def test_etsy_is_disabled_by_default(self):
+    def test_etsy_is_in_registry(self):
         ws = get_workstream("etsy")
-        assert ws.enabled is False
+        assert ws is not None
+        assert ws.workstream_id == "etsy"
 
-    def test_fiverr_is_disabled_by_default(self):
+    def test_fiverr_is_in_registry(self):
         ws = get_workstream("fiverr")
-        assert ws.enabled is False
+        assert ws is not None
+        assert ws.workstream_id == "fiverr"
 
     def test_find_worker_for_research(self):
         worker = find_worker_for_capabilities(["research"])
@@ -136,10 +138,15 @@ class TestWorkstreamRegistry:
         assert worker is not None
 
     def test_route_task_unknown_returns_none(self):
-        task = {"workstream_id": "etsy", "required_capabilities": ["listing"]}
-        # etsy is disabled, listing not covered by enabled workers
+        task = {"workstream_id": None, "required_capabilities": ["nonexistent_xyz_cap_12345"]}
         worker = route_task(task)
         assert worker is None
+
+    def test_route_task_etsy_returns_worker(self):
+        from ceo.workers.listing import EtsyListingWorker
+        task = {"workstream_id": "etsy", "required_capabilities": ["listing"]}
+        worker = route_task(task)
+        assert isinstance(worker, EtsyListingWorker)
 
     def test_all_workstreams_in_registry(self):
         expected = {"research", "content", "optimization", "etsy", "fiverr", "affiliate", "youtube"}
