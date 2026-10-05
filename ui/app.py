@@ -4,9 +4,53 @@ Game-like control panel to visualize and operate the agent ecosystem.
 """
 import os
 import json
+import time
+import logging
+import threading
 from datetime import datetime, timezone
 from flask import Flask, render_template, jsonify, request, abort
 from flask_cors import CORS
+
+log = logging.getLogger("ceo_autopilot")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
+
+_autopilot_thread: threading.Thread | None = None
+_autopilot_active = False
+_autopilot_interval = int(os.environ.get("CEO_CYCLE_INTERVAL", "30"))
+
+
+def _autopilot_loop():
+    global _autopilot_active
+    pilot = get_auto_pilot(DB_PATH)
+    while _autopilot_active:
+        try:
+            conn = init_db(DB_PATH)
+            try:
+                queued = conn.execute(
+                    "SELECT COUNT(*) as n FROM ceo_tasks WHERE status='queued'"
+                ).fetchone()["n"]
+            finally:
+                conn.close()
+            if queued == 0:
+                log.info("Autopilot: queue empty — seeding pipelines")
+                pilot.seed()
+            report = pilot.run_cycle()
+            log.info(
+                "Cycle %d: created=%d dispatched=%d completed=%d rev=$%.2f",
+                pilot.cycle_count,
+                report.brain_result.get("tasks_created", 0),
+                report.tasks_dispatched,
+                report.tasks_completed,
+                report.daily_revenue,
+            )
+        except Exception as e:
+            log.error("Autopilot error: %s", e)
+        # sleep in 0.5s chunks so stop is responsive
+        for _ in range(_autopilot_interval * 2):
+            if not _autopilot_active:
+                break
+            time.sleep(0.5)
+    log.info("Autopilot loop exited")
 
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -307,6 +351,26 @@ def api_autopilot_run():
     })
 
 
+@app.route("/api/autopilot/start", methods=["POST"])
+def api_autopilot_start():
+    global _autopilot_thread, _autopilot_active
+    if _autopilot_active:
+        return jsonify({"status": "already_running"})
+    _autopilot_active = True
+    _autopilot_thread = threading.Thread(target=_autopilot_loop, daemon=True, name="ceo-autopilot")
+    _autopilot_thread.start()
+    log.info("Autopilot started — interval=%ds", _autopilot_interval)
+    return jsonify({"status": "started", "interval_seconds": _autopilot_interval})
+
+
+@app.route("/api/autopilot/stop", methods=["POST"])
+def api_autopilot_stop():
+    global _autopilot_active
+    _autopilot_active = False
+    log.info("Autopilot stop requested")
+    return jsonify({"status": "stopping"})
+
+
 @app.route("/api/autopilot/status")
 def api_autopilot_status():
     pilot = get_auto_pilot(DB_PATH)
@@ -316,10 +380,11 @@ def api_autopilot_status():
         metrics = get_total_metrics(conn)
         return jsonify({
             "cycles_run": pilot.cycle_count,
-            "is_running": pilot._running,
+            "is_running": _autopilot_active,
             "daily_revenue": get_daily_revenue(conn),
             "total_revenue": metrics["total_revenue"],
             "task_counts": metrics["task_counts"],
+            "interval_seconds": _autopilot_interval,
         })
     finally:
         conn.close()

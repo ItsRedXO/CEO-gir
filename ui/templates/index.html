@@ -850,11 +850,14 @@
         <span class="badge" id="pilot-status">idle</span>
         <span style="color:var(--muted);font-size:10px" id="pilot-cycles">0 cycles</span>
       </div>
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-outline btn-sm" onclick="seedPipelines()" title="Seed all profit pipelines">🌱 Seed Pipelines</button>
-        <button class="btn btn-purple btn-sm" onclick="runCycle()" title="Run one decision cycle">▶ One Cycle</button>
-        <button class="btn btn-blue btn-sm" onclick="run5Cycles()" title="Run 5 cycles">⚡ Run 5 Cycles</button>
-        <button class="btn btn-green btn-sm" onclick="run10Cycles()" title="Run 10 cycles — max throughput">🚀 Run 10</button>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-outline btn-sm" onclick="seedPipelines()" title="Seed all profit pipelines">🌱 Seed</button>
+        <button id="autopilot-toggle-btn"
+          onclick="toggleAutopilot()"
+          style="font-size:14px;padding:8px 22px;border-radius:6px;font-weight:700;letter-spacing:.5px;border:2px solid var(--green);background:var(--green);color:#000;cursor:pointer;transition:all .2s"
+          title="Start/stop the autonomous CEO autopilot">
+          ▶ AUTOPILOT ON
+        </button>
       </div>
     </div>
 
@@ -1788,25 +1791,69 @@
   }
 
   // ── Autopilot ──
+  let _autopilotOn = false;
+
+  function _setAutopilotUI(on) {
+    _autopilotOn = on;
+    const btn = document.getElementById('autopilot-toggle-btn');
+    const badge = document.getElementById('pilot-status');
+    if (btn) {
+      if (on) {
+        btn.textContent = '⏹ AUTOPILOT OFF';
+        btn.style.background = 'var(--red)';
+        btn.style.borderColor = 'var(--red)';
+        btn.style.color = '#fff';
+      } else {
+        btn.textContent = '▶ AUTOPILOT ON';
+        btn.style.background = 'var(--green)';
+        btn.style.borderColor = 'var(--green)';
+        btn.style.color = '#000';
+      }
+    }
+    if (badge) badge.textContent = on ? 'running' : 'idle';
+    const ceoRobot = document.getElementById('ceo-robot');
+    const ceoTxt   = document.getElementById('ceo-status-txt');
+    if (ceoRobot) {
+      if (on) {
+        ceoRobot.classList.add('ceo-running');
+        if (ceoTxt) ceoTxt.textContent = '⚡ Autopilot active — running cycles forever…';
+      } else {
+        ceoRobot.classList.remove('ceo-running');
+        const cycles = parseInt(document.getElementById('pilot-cycles')?.textContent) || 0;
+        if (ceoTxt) ceoTxt.textContent = `Standby — ${cycles} cycle${cycles !== 1 ? 's' : ''} complete`;
+      }
+    }
+  }
+
+  async function toggleAutopilot() {
+    const btn = document.getElementById('autopilot-toggle-btn');
+    if (btn) btn.disabled = true;
+    try {
+      if (_autopilotOn) {
+        await api('/api/autopilot/stop', { method: 'POST', body: '{}' });
+        _setAutopilotUI(false);
+        logEntry('Autopilot stopped', 'warn');
+        toast('Autopilot stopped', 'warn');
+      } else {
+        const r = await api('/api/autopilot/start', { method: 'POST', body: '{}' });
+        _setAutopilotUI(true);
+        logEntry(`Autopilot started — cycling every ${r.interval_seconds}s forever`, 'ok');
+        toast('Autopilot ON — CEO is running forever', 'ok');
+      }
+    } catch(e) {
+      toast('Autopilot error: ' + e.message, 'err');
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
   async function loadAutopilotStatus() {
     try {
       const data = await api('/api/autopilot/status');
       const isRunning = data.is_running;
-      document.getElementById('pilot-status').textContent = isRunning ? 'running' : 'idle';
+      _setAutopilotUI(isRunning);
       document.getElementById('pilot-cycles').textContent = data.cycles_run + ' cycles';
-      // Animate CEO robot
-      const ceoRobot = document.getElementById('ceo-robot');
-      const ceoTxt   = document.getElementById('ceo-status-txt');
       const ceoCycles = document.getElementById('ceo-cycles');
-      if (ceoRobot) {
-        if (isRunning) {
-          ceoRobot.classList.add('ceo-running');
-          if (ceoTxt) ceoTxt.textContent = '⚡ Executing pipelines across all workstreams…';
-        } else {
-          ceoRobot.classList.remove('ceo-running');
-          if (ceoTxt) ceoTxt.textContent = `Monitoring all workstreams — ${data.cycles_run} cycle${data.cycles_run !== 1 ? 's' : ''} complete`;
-        }
-      }
       if (ceoCycles) ceoCycles.textContent = data.cycles_run || 0;
     } catch(e) {}
   }
@@ -1819,51 +1866,6 @@
       logEntry(`pipelines seeded: ${r.seeded ?? 0} tasks queued`, 'ok');
       await loadAll();
     } catch(e) { toast('Seed failed: ' + e.message, 'err'); }
-  }
-
-  async function runCycle() {
-    const btn = event.target;
-    btn.disabled = true;
-    document.getElementById('pilot-status').textContent = 'running';
-    logEntry('CEO cycle started', 'inf');
-    try {
-      const r = await api('/api/autopilot/cycle', { method: 'POST', body: '{}' });
-      const br = r.brain || {};
-      toast(`Cycle ${r.cycle_number}: +${r.tasks_completed} done, $${(r.daily_revenue||0).toFixed(2)}/day`, 'ok');
-      logEntry(`cycle ${r.cycle_number} ▸ created=${br.tasks_created||0} dispatched=${r.tasks_dispatched||0} completed=${r.tasks_completed||0} revenue=$${(r.daily_revenue||0).toFixed(2)}`, 'ok');
-      if (r.errors && r.errors.length) r.errors.forEach(e => logEntry('⚠ ' + e, 'warn'));
-      document.getElementById('pilot-cycles').textContent = r.cycle_number + ' cycles';
-      await loadAll();
-    } catch(e) { toast('Cycle error: ' + e.message, 'err'); }
-    finally {
-      btn.disabled = false;
-      document.getElementById('pilot-status').textContent = 'idle';
-    }
-  }
-
-  async function run5Cycles() {
-    await _runNCycles(5);
-  }
-
-  async function run10Cycles() {
-    await _runNCycles(10);
-  }
-
-  async function _runNCycles(n) {
-    document.getElementById('pilot-status').textContent = 'running';
-    logEntry(`starting ${n}-cycle autopilot run…`, 'inf');
-    try {
-      const r = await api('/api/autopilot/run', {
-        method: 'POST',
-        body: JSON.stringify({ cycles: n }),
-      });
-      const s = r.summary || {};
-      toast(`${r.cycles_run} cycles: +${s.total_completed||0} tasks, $${(s.daily_revenue||0).toFixed(2)}/day`, 'ok');
-      logEntry(`autopilot ${r.cycles_run} cycles ▸ created=${s.total_tasks_created||0} completed=${s.total_completed||0} failed=${s.total_failed||0} revenue=$${(s.daily_revenue||0).toFixed(2)}`, 'ok');
-      document.getElementById('pilot-cycles').textContent = r.cycles_run + ' cycles';
-      await loadAll();
-    } catch(e) { toast('Autopilot error: ' + e.message, 'err'); }
-    finally { document.getElementById('pilot-status').textContent = 'idle'; }
   }
 
   // ── Game View ──
