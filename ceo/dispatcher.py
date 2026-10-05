@@ -3,11 +3,14 @@ CEO GIR Dispatcher — routes tasks to workers, tracks capacity, manages executi
 """
 from __future__ import annotations
 
+import logging
 import sqlite3
 import time
 import threading
 from dataclasses import dataclass, field
 from typing import Optional
+
+log = logging.getLogger(__name__)
 
 from .orchestration import claim_task, complete_task, fail_task
 from .workstreams.registry import route_task
@@ -65,6 +68,7 @@ class Dispatcher:
         try:
             result: WorkerResult = worker.execute(task)
         except Exception as exc:
+            log.error("Dispatcher: worker exception task=%s worker=%s: %s", task_id, type(worker).__name__, exc, exc_info=True)
             self._release_slot(slot, success=False)
             fail_task(conn, task_id, error=str(exc))
             return {"task_id": task_id, "status": "failed", "reason": str(exc)}

@@ -321,8 +321,19 @@ class Asset2DWorker(BaseWorker):
     ]
     workstream_id = "assets_2d"
 
+    def _parse_input(self, task: dict) -> dict:
+        data = task.get("input_json") or {}
+        if isinstance(data, str):
+            try:
+                import json as _j
+                return _j.loads(data)
+            except Exception:
+                return {}
+        return data if isinstance(data, dict) else {}
+
     def execute(self, task: dict) -> WorkerResult:
         start = time.monotonic()
+        log.info("Asset2DWorker: dispatched task '%s'", task.get("title", "?"))
         inp = self._parse_input(task)
 
         asset_type = inp.get("asset_type", "printable")
@@ -401,7 +412,6 @@ class Asset2DWorker(BaseWorker):
                     success=False,
                     output={"error": "not_configured", "message": "Set GUMROAD_ACCESS_TOKEN env var — restart app after setting it"},
                     duration_ms=int(elapsed * 1000),
-                    worker_id=self.worker_id,
                 )
             else:
                 log.error("❌ Gumroad post FAILED for '%s' — see _post_to_gumroad logs above", title)
@@ -409,7 +419,6 @@ class Asset2DWorker(BaseWorker):
             success=posted,
             output=output,
             duration_ms=int(elapsed * 1000),
-            worker_id=self.worker_id,
         )
 
 
@@ -465,8 +474,19 @@ class Asset3DWorker(BaseWorker):
     ]
     workstream_id = "assets_3d"
 
+    def _parse_input(self, task: dict) -> dict:
+        data = task.get("input_json") or {}
+        if isinstance(data, str):
+            try:
+                import json as _j
+                return _j.loads(data)
+            except Exception:
+                return {}
+        return data if isinstance(data, dict) else {}
+
     def execute(self, task: dict) -> WorkerResult:
         start = time.monotonic()
+        log.info("Asset3DWorker: dispatched task '%s'", task.get("title", "?"))
         inp = self._parse_input(task)
 
         model_type  = inp.get("model_type", "3d_model")
@@ -521,5 +541,4 @@ class Asset3DWorker(BaseWorker):
             success=True,
             output=output,
             duration_ms=int(elapsed * 1000),
-            worker_id=self.worker_id,
         )
