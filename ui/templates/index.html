@@ -665,6 +665,7 @@
           <span class="badge" id="asset-count" style="background:var(--surface3);color:var(--accent)">0 assets</span>
           <select class="form-select" id="asset-filter" onchange="loadAssets()" style="padding:3px 6px;font-size:10px">
             <option value="">All Types</option>
+            <option value="youtube">YouTube Shorts</option>
             <option value="printable">Printable</option>
             <option value="logo">Logo</option>
             <option value="svg_bundle">SVG Bundle</option>
@@ -1256,7 +1257,7 @@
     try {
       const filter = document.getElementById('asset-filter')?.value || '';
       const assets = await api('/api/assets');
-      const filtered = filter ? assets.filter(a => a.asset_type === filter) : assets;
+      const filtered = filter ? assets.filter(a => a.asset_type === filter || a.workstream_id === filter) : assets;
       document.getElementById('asset-count').textContent = filtered.length + ' assets';
       const gallery = document.getElementById('asset-gallery');
       if (!filtered.length) {
@@ -1264,12 +1265,25 @@
         return;
       }
       gallery.innerHTML = filtered.map(a => {
-        const is3d = a.workstream_id === 'assets_3d';
-        const wsClass = is3d ? 'ws-3d' : 'ws-2d';
-        const wsLabel = is3d ? '3D' : '2D';
-        const preview = a.preview_svg
-          ? a.preview_svg
-          : `<div style="font-size:32px;opacity:.3">${is3d ? '🧊' : '🎨'}</div>`;
+        const is3d  = a.workstream_id === 'assets_3d';
+        const isYT  = a.asset_type === 'youtube_short';
+        let preview;
+        if (isYT) {
+          // YouTube Short — show video icon or link
+          const ytIcon = a.video_id
+            ? `<a href="https://youtu.be/${a.video_id}" target="_blank" style="color:var(--accent);font-size:28px;text-decoration:none">▶️</a>`
+            : `<div style="font-size:32px;opacity:.4">▶️</div>`;
+          preview = `<div style="display:flex;align-items:center;justify-content:center;height:100%;background:rgba(255,0,0,.06)">${ytIcon}</div>`;
+        } else if (a.preview_url) {
+          // Real image from Pollinations.ai
+          preview = `<img src="${a.preview_url}" alt="${a.title}" style="width:100%;height:100%;object-fit:cover" loading="lazy" onerror="this.style.display='none';this.nextSibling.style.display='flex'"><div style="display:none;align-items:center;justify-content:center;font-size:32px;opacity:.3;width:100%;height:100%">${is3d ? '🧊' : '🎨'}</div>`;
+        } else if (a.preview_svg) {
+          preview = a.preview_svg;
+        } else {
+          preview = `<div style="font-size:32px;opacity:.3;display:flex;align-items:center;justify-content:center;width:100%;height:100%">${is3d ? '🧊' : '🎨'}</div>`;
+        }
+        const wsLabel = isYT ? 'YT' : is3d ? '3D' : '2D';
+        const wsClass = isYT ? '' : is3d ? 'ws-3d' : 'ws-2d';
         const platforms = (a.platforms || []).slice(0,3).join(' · ') || '—';
         const price = a.price_usd ? `$${Number(a.price_usd).toFixed(2)}` : '';
         return `
@@ -1278,10 +1292,11 @@
             <div class="asset-meta">
               <div class="asset-name" title="${a.title}">${a.title}</div>
               <div class="asset-tags">
-                <span class="asset-tag ${wsClass}">${wsLabel}</span>
+                <span class="asset-tag ${wsClass}" style="${isYT ? 'color:#f00;background:rgba(255,0,0,.12)' : ''}">${wsLabel}</span>
                 <span class="asset-tag">${(a.asset_type||'').replace(/_/g,' ')}</span>
                 ${a.style ? `<span class="asset-tag">${a.style}</span>` : ''}
                 ${a.listing_ready ? '<span class="asset-tag" style="color:var(--green);background:rgba(16,185,129,.12)">✓ ready</span>' : ''}
+                ${a.upload_status === 'no_credentials' ? '<span class="asset-tag" style="color:var(--yellow,#facc15);background:rgba(250,204,21,.1)">⚠ needs YT key</span>' : ''}
               </div>
               ${price ? `<div class="asset-price">${price}</div>` : ''}
               <div class="asset-platforms">${platforms}</div>
@@ -1298,7 +1313,7 @@
       const grid = document.getElementById('stores-grid');
       const icons = {
         etsy: '🛍️', fiverr: '💼', cgtrader: '🧊', turbosquid: '🌀',
-        creative_market: '🎨', gumroad: '💫',
+        creative_market: '🎨', gumroad: '💫', 'itch.io': '🎮', youtube: '▶️',
       };
       grid.innerHTML = stores.map(s => `
         <div class="store-card ${s.active ? 'active' : ''}">
@@ -1309,6 +1324,7 @@
             <span style="font-size:9px;color:${s.active ? 'var(--green)' : 'var(--muted)'}">${s.active ? 'ACTIVE' : 'INACTIVE'}</span>
           </div>
           <div class="store-listings">${s.listings} listing${s.listings !== 1 ? 's' : ''}</div>
+          ${s.free ? '<div style="font-size:8px;color:var(--green);opacity:.7;margin-top:2px">FREE</div>' : ''}
         </div>`).join('');
     } catch(e) {}
   }

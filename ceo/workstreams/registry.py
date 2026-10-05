@@ -12,6 +12,7 @@ from ..workers.trend import TrendResearchWorker, NicheAnalysisWorker, ProductRes
 from ..workers.delivery import ServiceDeliveryWorker, SalesTrackerWorker, PricingOptimizerWorker
 from ..workers.email import ListBuildingWorker, EmailCampaignWorker
 from ..workers.asset_gen import Asset2DWorker, Asset3DWorker
+from ..workers.shorts import ShortsWorker
 
 
 @dataclass
@@ -177,6 +178,26 @@ WORKSTREAM_REGISTRY: dict[str, WorkstreamConfig] = {
         capabilities=["3d_asset", "3d_model", "cg_asset", "game_asset", "character_model", "environment_design", "prop_creation"],
         revenue_target_daily=25.0,
         icon="🧊",
+    ),
+    "youtube": WorkstreamConfig(
+        workstream_id="youtube",
+        name="YouTube Shorts",
+        description="AI-narrated Shorts on trending topics — free with gTTS + Pollinations",
+        enabled=True,
+        worker_class=ShortsWorker,
+        capabilities=["youtube_shorts", "video_content", "content", "social_media"],
+        revenue_target_daily=5.0,
+        icon="▶️",
+    ),
+    "gumroad": WorkstreamConfig(
+        workstream_id="gumroad",
+        name="Gumroad",
+        description="Auto-post digital product listings to Gumroad (0% monthly fee)",
+        enabled=True,
+        worker_class=Asset2DWorker,  # reuses asset gen, posts to Gumroad
+        capabilities=["2d_asset", "design", "printable"],
+        revenue_target_daily=8.0,
+        icon="🛒",
     ),
 }
 

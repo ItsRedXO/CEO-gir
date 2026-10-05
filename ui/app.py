@@ -376,11 +376,11 @@ def api_assets():
             """
             SELECT task_id, title, workstream_id, status, result_json, updated_at
             FROM ceo_tasks
-            WHERE workstream_id IN ('assets_2d','assets_3d','assets')
+            WHERE workstream_id IN ('assets_2d','assets_3d','assets','youtube','gumroad')
               AND status = 'completed'
               AND result_json IS NOT NULL
             ORDER BY updated_at DESC
-            LIMIT 40
+            LIMIT 60
             """,
         ).fetchall()
         assets = []
@@ -391,19 +391,39 @@ def api_assets():
                     result = _json.loads(row["result_json"]) if isinstance(row["result_json"], str) else row["result_json"]
                 except Exception:
                     pass
-            assets.append({
-                "task_id":      row["task_id"],
-                "title":        row["title"],
-                "workstream_id": row["workstream_id"],
-                "asset_type":   result.get("asset_type") or result.get("model_type") or "asset",
-                "style":        result.get("style", ""),
-                "preview_svg":  result.get("preview_svg") or result.get("output", {}).get("preview_svg"),
-                "formats":      result.get("formats", []),
-                "platforms":    result.get("platforms", []),
-                "listing_ready": result.get("listing_ready", False),
-                "price_usd":    (result.get("economic_data") or {}).get("price_usd", 0),
-                "updated_at":   row["updated_at"],
-            })
+            # YouTube Shorts special fields
+            if row["workstream_id"] == "youtube":
+                assets.append({
+                    "task_id":      row["task_id"],
+                    "title":        row["title"],
+                    "workstream_id": row["workstream_id"],
+                    "asset_type":   "youtube_short",
+                    "style":        result.get("niche", ""),
+                    "preview_svg":  None,
+                    "preview_url":  f"https://youtu.be/{result['video_id']}" if result.get("video_id") else None,
+                    "formats":      ["MP4"],
+                    "platforms":    ["youtube"],
+                    "listing_ready": result.get("listing_ready", False),
+                    "price_usd":    0.0,
+                    "video_id":     result.get("video_id"),
+                    "upload_status": result.get("upload_status"),
+                    "updated_at":   row["updated_at"],
+                })
+            else:
+                assets.append({
+                    "task_id":      row["task_id"],
+                    "title":        row["title"],
+                    "workstream_id": row["workstream_id"],
+                    "asset_type":   result.get("asset_type") or result.get("model_type") or "asset",
+                    "style":        result.get("style", ""),
+                    "preview_svg":  result.get("preview_svg") or result.get("output", {}).get("preview_svg"),
+                    "preview_url":  result.get("preview_url"),
+                    "formats":      result.get("formats", []),
+                    "platforms":    result.get("platforms", []),
+                    "listing_ready": result.get("listing_ready", False),
+                    "price_usd":    (result.get("economic_data") or {}).get("price_usd", 0),
+                    "updated_at":   row["updated_at"],
+                })
         return jsonify(assets)
     finally:
         conn.close()
@@ -415,24 +435,26 @@ def api_stores():
     conn = get_db()
     try:
         import json as _json
-        platforms = ["etsy", "fiverr", "cgtrader", "turbosquid", "creative_market", "gumroad"]
+        platforms = ["gumroad", "itch.io", "fiverr", "cgtrader", "turbosquid", "creative_market", "etsy", "youtube"]
         stores = []
         for platform in platforms:
+            search_key = platform.split("_")[0].replace(".", "")
             rows = conn.execute(
                 """
                 SELECT COUNT(*) as total,
                        SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) as completed
                 FROM ceo_tasks
-                WHERE (workstream_id=? OR result_json LIKE ?)
-                  AND (title LIKE ? OR result_json LIKE ?)
+                WHERE (workstream_id=? OR workstream_id LIKE ?)
+                   OR (result_json LIKE ? OR title LIKE ?)
                 """,
-                (platform.split("_")[0], f'%"{platform}"%', f"%{platform}%", f'%"{platform}"%'),
+                (search_key, f"{search_key}%", f'%"{platform}"%', f"%{platform}%"),
             ).fetchone()
             stores.append({
                 "platform": platform,
-                "label":    platform.replace("_", " ").title(),
+                "label":    platform.replace("_", " ").replace(".", " ").title(),
                 "listings": rows["completed"] or 0,
                 "active":   (rows["completed"] or 0) > 0,
+                "free":     platform in ("gumroad", "itch.io", "youtube"),
             })
         return jsonify(stores)
     finally:

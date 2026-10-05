@@ -2,14 +2,25 @@
 Asset Generation Workers — 2D and 3D digital asset creation.
 
 In simulation mode these generate rich metadata + procedural SVG previews.
-Plug in Stable Diffusion / Meshy API keys to generate real files.
+With POLLINATIONS_ENABLED=true, real PNG images are generated via Pollinations.ai (free).
 """
 from __future__ import annotations
+import os
 import time
 import math
 import hashlib
 import random
 from .base import BaseWorker, WorkerResult
+
+def _pollinations_url(asset_type: str, style: str, title: str) -> str:
+    """Returns a Pollinations.ai image URL (no API key needed)."""
+    try:
+        from ..providers.image_gen import generate_image_url
+        prompt = f"professional digital {asset_type} asset, {style} style, {title}, clean, high quality"
+        seed   = int(hashlib.md5(f"{title}{style}".encode()).hexdigest()[:8], 16) % 9999
+        return generate_image_url(prompt, width=512, height=512, seed=seed)
+    except Exception:
+        return ""
 
 # ── SVG generators (procedural previews) ─────────────────────────────────────
 
@@ -273,6 +284,13 @@ class Asset2DWorker(BaseWorker):
 
         tags = _STYLE_TAGS.get(style, [style, asset_type, "digital", "instant_download"])[:8]
         preview_svg = _generate_preview(asset_type, title, style)
+        preview_url = _pollinations_url(asset_type, style, title)
+
+        # Add free selling platforms
+        platforms = list(spec["platforms"])
+        for p in ("gumroad", "itch.io"):
+            if p not in platforms:
+                platforms.append(p)
 
         assets = []
         for i in range(quantity):
@@ -286,6 +304,7 @@ class Asset2DWorker(BaseWorker):
                 "formats":  spec["formats"],
                 "dimensions": spec["dimensions"],
                 "preview_svg": preview_svg if i == 0 else None,
+                "preview_url": preview_url if i == 0 else None,
             })
 
         output = {
@@ -299,7 +318,8 @@ class Asset2DWorker(BaseWorker):
             "tags":         tags,
             "listing_ready": True,
             "preview_svg":  preview_svg,
-            "platforms":    spec["platforms"],
+            "preview_url":  preview_url,
+            "platforms":    platforms,
             "economic_data": {
                 "revenue":    price,
                 "spend":      0.0,

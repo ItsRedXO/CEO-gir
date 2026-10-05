@@ -282,6 +282,67 @@ def _asset3d_pipeline(model_type: str = "3d_model", style: str = "low_poly") -> 
     ]
 
 
+def _shorts_pipeline(niche: str = "ai_tips", topic: str = "") -> list[dict]:
+    """YouTube Shorts pipeline — free: gTTS + Pollinations + YouTube API."""
+    return [
+        {
+            "title": f"Research trending {niche} topics for Shorts",
+            "workstream_id": "research",
+            "capabilities": ["trend_research"],
+            "priority": 2,
+            "input_data": {"platform": "youtube", "niche": niche, "format": "shorts"},
+        },
+        {
+            "title": f"Create YouTube Short: {niche}{' — ' + topic if topic else ''}",
+            "workstream_id": "youtube",
+            "capabilities": ["youtube_shorts", "video_content"],
+            "priority": 3,
+            "input_data": {"niche": niche, "topic": topic or None},
+        },
+        {
+            "title": f"Track YouTube Short performance: {niche}",
+            "workstream_id": "analytics",
+            "capabilities": ["analytics", "reporting"],
+            "priority": 5,
+            "input_data": {"platform": "youtube", "niche": niche, "period_days": 7},
+        },
+    ]
+
+
+def _gumroad_pipeline(asset_type: str = "printable", style: str = "minimal") -> list[dict]:
+    """Free digital product pipeline: generate → post to Gumroad (free, 10% cut)."""
+    price_map = {"printable": 4.99, "logo": 14.99, "svg_bundle": 8.99, "template": 9.99, "planner": 6.99}
+    price = price_map.get(asset_type, 4.99)
+    return [
+        {
+            "title": f"Generate {style} {asset_type} for Gumroad",
+            "workstream_id": "assets_2d",
+            "capabilities": ["2d_asset", "design"],
+            "priority": 3,
+            "input_data": {"asset_type": asset_type, "style": style, "quantity": 1},
+        },
+        {
+            "title": f"Post {style} {asset_type} to Gumroad",
+            "workstream_id": "gumroad",
+            "capabilities": ["2d_asset", "design", "printable"],
+            "priority": 3,
+            "input_data": {
+                "asset_type": asset_type,
+                "style": style,
+                "price_usd": price,
+                "platform": "gumroad",
+            },
+        },
+        {
+            "title": f"Track Gumroad sales: {style} {asset_type}",
+            "workstream_id": "analytics",
+            "capabilities": ["analytics"],
+            "priority": 5,
+            "input_data": {"platform": "gumroad", "asset_type": asset_type, "period_days": 7},
+        },
+    ]
+
+
 # ── Pipeline catalog ──────────────────────────────────────────────────────
 PIPELINES = {
     "etsy_boho":       lambda: _etsy_pipeline("boho", "printable"),
@@ -312,6 +373,16 @@ PIPELINES = {
     "3d_character_fantasy":  lambda: _asset3d_pipeline("character", "fantasy"),
     "3d_scifi_model":        lambda: _asset3d_pipeline("3d_model", "sci_fi"),
     "3d_game_asset_cartoon": lambda: _asset3d_pipeline("game_asset", "cartoon"),
+    # YouTube Shorts pipelines (free — gTTS + Pollinations + YouTube API)
+    "shorts_ai_tips":        lambda: _shorts_pipeline("ai_tips"),
+    "shorts_gaming":         lambda: _shorts_pipeline("trending_gaming"),
+    "shorts_money":          lambda: _shorts_pipeline("money_tips"),
+    "shorts_facts":          lambda: _shorts_pipeline("facts"),
+    # Gumroad free store pipelines
+    "gumroad_printable_boho":    lambda: _gumroad_pipeline("printable", "boho"),
+    "gumroad_printable_minimal": lambda: _gumroad_pipeline("printable", "minimal"),
+    "gumroad_svg_wildflower":    lambda: _gumroad_pipeline("svg_bundle", "wildflower"),
+    "gumroad_logo_corporate":    lambda: _gumroad_pipeline("logo", "corporate"),
 }
 
 # Revenue targets per workstream (daily $)
@@ -319,7 +390,8 @@ WORKSTREAM_TARGETS = {
     "etsy":      20.0,
     "fiverr":    15.0,
     "affiliate": 25.0,
-    "youtube":   20.0,
+    "youtube":   5.0,   # Shorts take time to grow
+    "gumroad":   8.0,
     "assets_2d": 15.0,
     "assets_3d": 25.0,
 }
