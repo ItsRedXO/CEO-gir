@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CEO GIR — Command Center</title>
+  <style>
+    :root {
+      --bg: #0a0e1a;
+      --surface: #111827;
+      --surface2: #1c2537;
+      --border: #1e2d45;
+      --accent: #00d4ff;
+      --accent2: #7c3aed;
+      --green: #10b981;
+      --yellow: #f59e0b;
+      --red: #ef4444;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --font: 'Courier New', Courier, monospace;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 13px;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 24px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+    .logo { font-size: 18px; font-weight: bold; color: var(--accent); letter-spacing: 2px; }
+    .logo span { color: var(--accent2); }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); display: inline-block; margin-right: 6px; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+    .header-right { display: flex; align-items: center; gap: 16px; color: var(--muted); font-size: 11px; }
+    #last-update { color: var(--muted); }
+
+    /* ── Layout ── */
+    .main { display: grid; grid-template-columns: 260px 1fr; min-height: calc(100vh - 50px); }
+    .sidebar { background: var(--surface); border-right: 1px solid var(--border); padding: 16px; }
+    .content { padding: 20px; overflow-y: auto; }
+
+    /* ── Stat Cards ── */
+    .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      position: relative;
+      overflow: hidden;
+    }
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--accent);
+    }
+    .stat-card.green::before { background: var(--green); }
+    .stat-card.purple::before { background: var(--accent2); }
+    .stat-card.yellow::before { background: var(--yellow); }
+    .stat-label { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+    .stat-value { font-size: 24px; font-weight: bold; color: var(--text); }
+    .stat-sub { color: var(--muted); font-size: 10px; margin-top: 4px; }
+
+    /* ── Revenue Meter ── */
+    .revenue-meter {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+    .meter-header { display: flex; justify-content: space-between; margin-bottom: 10px; }
+    .meter-title { color: var(--accent); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+    .meter-target { color: var(--muted); font-size: 11px; }
+    .meter-bar-bg {
+      background: var(--surface2);
+      border-radius: 4px;
+      height: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .meter-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent2), var(--accent));
+      border-radius: 4px;
+      transition: width 0.8s ease;
+      min-width: 2px;
+    }
+    .meter-levels {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 6px;
+      font-size: 9px;
+      color: var(--muted);
+    }
+    .level-active { color: var(--green); font-weight: bold; }
+
+    /* ── Task Tables ── */
+    .section { margin-bottom: 20px; }
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .section-title { color: var(--accent); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+    .badge {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 10px;
+    }
+    .badge.red { border-color: var(--red); color: var(--red); }
+    .badge.green { border-color: var(--green); color: var(--green); }
+    .badge.yellow { border-color: var(--yellow); color: var(--yellow); }
+
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; color: var(--muted); font-size: 10px; text-transform: uppercase; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+    td { padding: 7px 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tr:hover td { background: var(--surface2); }
+    .status-pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+    .s-queued { background:#1e3a5f; color:#60a5fa; }
+    .s-assigned { background:#1a3a2a; color:#6ee7b7; }
+    .s-in_progress { background:#2a2040; color:#c4b5fd; }
+    .s-blocked_approval { background:#3d2800; color:#fbbf24; }
+    .s-completed { background:#083344; color:#22d3ee; }
+    .s-failed { background:#3b1219; color:#f87171; }
+    .s-cancelled { background:#1f2937; color:#6b7280; }
+
+    .btn {
+      padding: 4px 10px;
+      border-radius: 4px;
+      border: none;
+      cursor: pointer;
+      font-family: var(--font);
+      font-size: 11px;
+      font-weight: bold;
+      transition: opacity 0.15s;
+    }
+    .btn:hover { opacity: 0.85; }
+    .btn-approve { background: var(--green); color: #000; }
+    .btn-reject { background: var(--red); color: #fff; }
+    .btn-assign { background: var(--accent2); color: #fff; }
+    .btn-sm { padding: 3px 8px; font-size: 10px; }
+
+    /* ── Sidebar ── */
+    .sidebar-section { margin-bottom: 20px; }
+    .sidebar-title { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+    .ws-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 8px;
+      border-radius: 4px;
+      margin-bottom: 4px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+    }
+    .ws-name { font-size: 12px; }
+    .ws-dot { width: 6px; height: 6px; border-radius: 50%; }
+    .ws-dot.enabled { background: var(--green); }
+    .ws-dot.disabled { background: var(--muted); }
+
+    .mini-log {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 8px;
+      max-height: 180px;
+      overflow-y: auto;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .mini-log .log-line { margin-bottom: 4px; }
+    .mini-log .log-line span { color: var(--accent); }
+
+    /* ── Create Task Form ── */
+    .create-form {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+    .form-group { display: flex; flex-direction: column; gap: 4px; }
+    label { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
+    input, select, textarea {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 12px;
+      padding: 6px 8px;
+      border-radius: 4px;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    .form-actions { display: flex; gap: 8px; margin-top: 10px; }
+    .btn-primary { background: var(--accent); color: #000; padding: 7px 16px; font-size: 12px; }
+
+    /* ── Scrollbars ── */
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: var(--surface); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    /* ── Tabs ── */
+    .tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--border); }
+    .tab {
+      padding: 8px 14px;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      font-family: var(--font);
+      font-size: 12px;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+    }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* ── Notifications ── */
+    #toast-container { position: fixed; top: 60px; right: 20px; z-index: 999; }
+    .toast {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 14px;
+      margin-bottom: 8px;
+      font-size: 12px;
+      min-width: 200px;
+      animation: fadeIn 0.2s ease;
+    }
+    .toast.success { border-left: 3px solid var(--green); }
+    .toast.error { border-left: 3px solid var(--red); }
+    .toast.info { border-left: 3px solid var(--accent); }
+    @keyframes fadeIn { from{opacity:0;transform:translateX(20px)} to{opacity:1;transform:translateX(0)} }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">CEO <span>GIR</span> — Command Center</div>
+  <div class="header-right">
+    <span><span class="status-dot"></span>ONLINE</span>
+    <span id="last-update">—</span>
+  </div>
+</header>
+
+<div class="main">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-title">Workstreams</div>
+      <div class="ws-item"><span class="ws-name">Research</span><span class="ws-dot enabled"></span></div>
+      <div class="ws-item"><span class="ws-name">Content</span><span class="ws-dot enabled"></span></div>
+      <div class="ws-item"><span class="ws-name">Optimization</span><span class="ws-dot enabled"></span></div>
+      <div class="ws-item"><span class="ws-name">Etsy</span><span class="ws-dot disabled"></span></div>
+      <div class="ws-item"><span class="ws-name">Fiverr</span><span class="ws-dot disabled"></span></div>
+      <div class="ws-item"><span class="ws-name">Affiliate</span><span class="ws-dot disabled"></span></div>
+      <div class="ws-item"><span class="ws-name">YouTube</span><span class="ws-dot disabled"></span></div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-title">CEO Memory</div>
+      <div class="mini-log" id="memory-log">
+        <div class="log-line" style="color:var(--muted)">No lessons yet...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="content">
+
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-card green">
+        <div class="stat-label">Daily Revenue</div>
+        <div class="stat-value" id="daily-revenue">$0.00</div>
+        <div class="stat-sub">today</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total Profit</div>
+        <div class="stat-value" id="total-profit">$0.00</div>
+        <div class="stat-sub">all time</div>
+      </div>
+      <div class="stat-card purple">
+        <div class="stat-label">Active Tasks</div>
+        <div class="stat-value" id="active-tasks">0</div>
+        <div class="stat-sub">in progress</div>
+      </div>
+      <div class="stat-card yellow">
+        <div class="stat-label">Pending Approval</div>
+        <div class="stat-value" id="pending-count">0</div>
+        <div class="stat-sub">awaiting you</div>
+      </div>
+    </div>
+
+    <!-- Revenue Meter -->
+    <div class="revenue-meter">
+      <div class="meter-header">
+        <span class="meter-title">Revenue Progress</span>
+        <span class="meter-target" id="current-target-label">Target: $5/day</span>
+      </div>
+      <div class="meter-bar-bg">
+        <div class="meter-bar-fill" id="revenue-bar" style="width:0%"></div>
+      </div>
+      <div class="meter-levels">
+        <span id="lvl-5" class="level-active">$5</span>
+        <span id="lvl-10">$10</span>
+        <span id="lvl-20">$20</span>
+        <span id="lvl-50">$50</span>
+        <span id="lvl-100">$100</span>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('approvals')">🔐 Approvals <span id="approval-badge" class="badge red" style="display:none">0</span></button>
+      <button class="tab" onclick="switchTab('tasks')">📋 Tasks</button>
+      <button class="tab" onclick="switchTab('create')">➕ Create Task</button>
+    </div>
+
+    <!-- Approvals Tab -->
+    <div id="tab-approvals" class="tab-content active">
+      <div class="section">
+        <div class="section-header">
+          <span class="section-title">Pending Approvals</span>
+        </div>
+        <table id="approvals-table">
+          <thead>
+            <tr>
+              <th>Task</th>
+              <th>Type</th>
+              <th>Reason</th>
+              <th>Requested</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="approvals-body">
+            <tr><td colspan="5" style="color:var(--muted);text-align:center;padding:20px;">No pending approvals</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tasks Tab -->
+    <div id="tab-tasks" class="tab-content">
+      <div class="section">
+        <div class="section-header">
+          <span class="section-title">Task Queue</span>
+          <select id="task-filter" onchange="loadTasks()" style="width:140px;">
+            <option value="">All Statuses</option>
+            <option value="queued">Queued</option>
+            <option value="assigned">Assigned</option>
+            <option value="in_progress">In Progress</option>
+            <option value="blocked_approval">Blocked</option>
+            <option value="completed">Completed</option>
+            <option value="failed">Failed</option>
+          </select>
+        </div>
+        <table id="tasks-table">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Workstream</th>
+              <th>Status</th>
+              <th>Priority</th>
+              <th>Created</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="tasks-body">
+            <tr><td colspan="6" style="color:var(--muted);text-align:center;padding:20px;">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Create Task Tab -->
+    <div id="tab-create" class="tab-content">
+      <div class="create-form">
+        <div class="section-title" style="margin-bottom:14px;">New Task</div>
+        <div class="form-row">
+          <div class="form-group" style="grid-column:1/-1;">
+            <label>Title *</label>
+            <input type="text" id="new-title" placeholder="Task title...">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Workstream</label>
+            <select id="new-workstream">
+              <option value="">— select —</option>
+              <option value="research">Research</option>
+              <option value="content">Content</option>
+              <option value="optimization">Optimization</option>
+              <option value="etsy">Etsy</option>
+              <option value="fiverr">Fiverr</option>
+              <option value="affiliate">Affiliate</option>
+              <option value="youtube">YouTube</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Priority (1=high, 9=low)</label>
+            <input type="number" id="new-priority" value="5" min="1" max="9">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Side Effect Type</label>
+            <select id="new-side-effect">
+              <option value="">none</option>
+              <option value="content">content</option>
+              <option value="listing">listing</option>
+              <option value="marketing">marketing</option>
+              <option value="purchase">purchase</option>
+              <option value="financial">financial</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Planned Spend ($)</label>
+            <input type="number" id="new-spend" value="0" min="0" step="0.01">
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:10px;">
+          <label>Description</label>
+          <textarea id="new-description" rows="3" placeholder="What should this task accomplish?"></textarea>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-primary" onclick="createTask()">Create Task</button>
+          <button class="btn" onclick="clearForm()" style="background:var(--surface2);color:var(--muted);">Clear</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script>
+  const API = '';
+
+  // ── Tab switching ──
+  function switchTab(name) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    event.target.closest('.tab').classList.add('active');
+    if (name === 'tasks') loadTasks();
+    if (name === 'approvals') loadApprovals();
+  }
+
+  // ── Toast ──
+  function toast(msg, type='info') {
+    const el = document.createElement('div');
+    el.className = `toast ${type}`;
+    el.textContent = msg;
+    document.getElementById('toast-container').appendChild(el);
+    setTimeout(() => el.remove(), 3500);
+  }
+
+  // ── Revenue Meter ──
+  const LEVELS = [5, 10, 20, 50, 100];
+  function updateMeter(daily) {
+    let target = LEVELS[LEVELS.length - 1];
+    let activeLevel = LEVELS[0];
+    for (const lvl of LEVELS) {
+      if (daily < lvl) { target = lvl; break; }
+      activeLevel = lvl;
+    }
+    const pct = Math.min((daily / target) * 100, 100);
+    document.getElementById('revenue-bar').style.width = pct + '%';
+    document.getElementById('current-target-label').textContent = `Target: $${target}/day`;
+    LEVELS.forEach(lvl => {
+      const el = document.getElementById('lvl-' + lvl);
+      if (el) el.className = daily >= lvl ? 'level-active' : '';
+    });
+  }
+
+  // ── Status polling ──
+  async function loadStatus() {
+    try {
+      const r = await fetch(API + '/api/status');
+      const d = await r.json();
+      document.getElementById('daily-revenue').textContent = '$' + (d.daily_revenue || 0).toFixed(2);
+      document.getElementById('total-profit').textContent = '$' + (d.total_profit || 0).toFixed(2);
+      document.getElementById('active-tasks').textContent = d.in_progress_count || 0;
+      document.getElementById('pending-count').textContent = d.pending_approvals || 0;
+      updateMeter(d.daily_revenue || 0);
+      const badge = document.getElementById('approval-badge');
+      if (d.pending_approvals > 0) {
+        badge.textContent = d.pending_approvals;
+        badge.style.display = '';
+      } else {
+        badge.style.display = 'none';
+      }
+      document.getElementById('last-update').textContent = 'Updated ' + new Date().toLocaleTimeString();
+    } catch(e) {
+      console.error(e);
+    }
+  }
+
+  // ── Approvals ──
+  async function loadApprovals() {
+    try {
+      const r = await fetch(API + '/api/approvals');
+      const data = await r.json();
+      const tbody = document.getElementById('approvals-body');
+      if (!data.length) {
+        tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted);text-align:center;padding:20px;">No pending approvals — nice!</td></tr>';
+        return;
+      }
+      tbody.innerHTML = data.map(a => `
+        <tr>
+          <td title="${a.task_id}">${escHtml(a.task_title || '—')}</td>
+          <td><span class="badge yellow">${escHtml(a.action_type)}</span></td>
+          <td style="color:var(--muted);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(a.decision_note || a.action_type)}</td>
+          <td style="color:var(--muted)">${timeAgo(a.requested_at)}</td>
+          <td>
+            <button class="btn btn-approve btn-sm" onclick="decide('${a.approval_id}', true)">✓ Approve</button>
+            &nbsp;
+            <button class="btn btn-reject btn-sm" onclick="decide('${a.approval_id}', false)">✗ Reject</button>
+          </td>
+        </tr>
+      `).join('');
+    } catch(e) {
+      console.error(e);
+    }
+  }
+
+  async function decide(approvalId, approved) {
+    try {
+      const r = await fetch(API + '/api/approvals/' + approvalId + '/decide', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({approved})
+      });
+      const d = await r.json();
+      toast(approved ? '✓ Approved — task unblocked' : '✗ Rejected — task cancelled', approved ? 'success' : 'error');
+      loadApprovals();
+      loadStatus();
+    } catch(e) {
+      toast('Error: ' + e.message, 'error');
+    }
+  }
+
+  // ── Tasks ──
+  async function loadTasks() {
+    const status = document.getElementById('task-filter').value;
+    const url = API + '/api/tasks' + (status ? '?status=' + status : '');
+    try {
+      const r = await fetch(url);
+      const data = await r.json();
+      const tbody = document.getElementById('tasks-body');
+      if (!data.length) {
+        tbody.innerHTML = '<tr><td colspan="6" style="color:var(--muted);text-align:center;padding:20px;">No tasks found</td></tr>';
+        return;
+      }
+      tbody.innerHTML = data.map(t => `
+        <tr>
+          <td title="${t.task_id}">${escHtml(t.title)}</td>
+          <td style="color:var(--muted)">${t.workstream_id || '—'}</td>
+          <td><span class="status-pill s-${t.status}">${t.status}</span></td>
+          <td style="color:var(--muted)">${t.priority}</td>
+          <td style="color:var(--muted)">${timeAgo(t.created_at)}</td>
+          <td>
+            ${t.status === 'queued' ? `<button class="btn btn-assign btn-sm" onclick="assignTask('${t.task_id}')">Assign</button>` : ''}
+          </td>
+        </tr>
+      `).join('');
+    } catch(e) {
+      console.error(e);
+    }
+  }
+
+  async function assignTask(taskId) {
+    try {
+      const r = await fetch(API + '/api/tasks/' + taskId + '/assign', {method:'POST'});
+      const d = await r.json();
+      if (d.status === 'blocked_approval') {
+        toast('Task blocked — needs approval', 'info');
+        switchTabDirect('approvals');
+      } else {
+        toast('Task assigned ✓', 'success');
+      }
+      loadTasks();
+      loadStatus();
+    } catch(e) {
+      toast('Error: ' + e.message, 'error');
+    }
+  }
+
+  function switchTabDirect(name) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    document.querySelectorAll('.tab')[0].classList.add('active');
+    if (name === 'approvals') loadApprovals();
+  }
+
+  // ── Create Task ──
+  async function createTask() {
+    const title = document.getElementById('new-title').value.trim();
+    if (!title) { toast('Title is required', 'error'); return; }
+    const spend = parseFloat(document.getElementById('new-spend').value) || 0;
+    const payload = {
+      title,
+      description: document.getElementById('new-description').value,
+      workstream_id: document.getElementById('new-workstream').value || null,
+      priority: parseInt(document.getElementById('new-priority').value) || 5,
+      side_effect_type: document.getElementById('new-side-effect').value || null,
+      input_data: spend > 0 ? { economic_plan: { spend } } : null,
+      created_by: 'human',
+    };
+    try {
+      const r = await fetch(API + '/api/tasks', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload),
+      });
+      const d = await r.json();
+      toast(`Task created: ${d.task_id.slice(0,8)}...`, 'success');
+      clearForm();
+      loadStatus();
+    } catch(e) {
+      toast('Error: ' + e.message, 'error');
+    }
+  }
+
+  function clearForm() {
+    ['new-title','new-description'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('new-workstream').value = '';
+    document.getElementById('new-side-effect').value = '';
+    document.getElementById('new-priority').value = 5;
+    document.getElementById('new-spend').value = 0;
+  }
+
+  // ── Memory log ──
+  async function loadMemory() {
+    try {
+      const r = await fetch(API + '/api/memory');
+      const data = await r.json();
+      const log = document.getElementById('memory-log');
+      if (!data.length) { log.innerHTML = '<div class="log-line" style="color:var(--muted)">No lessons yet...</div>'; return; }
+      log.innerHTML = data.slice(0, 10).map(m =>
+        `<div class="log-line"><span>[${m.category}]</span> ${escHtml(m.content.slice(0,80))}</div>`
+      ).join('');
+    } catch(e) {}
+  }
+
+  // ── Helpers ──
+  function escHtml(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  function timeAgo(iso) {
+    if (!iso) return '—';
+    const diff = (Date.now() - new Date(iso).getTime()) / 1000;
+    if (diff < 60) return Math.round(diff) + 's ago';
+    if (diff < 3600) return Math.round(diff / 60) + 'm ago';
+    if (diff < 86400) return Math.round(diff / 3600) + 'h ago';
+    return Math.round(diff / 86400) + 'd ago';
+  }
+
+  // ── Init ──
+  loadStatus();
+  loadApprovals();
+  loadMemory();
+  setInterval(() => { loadStatus(); loadMemory(); }, 5000);
+  setInterval(loadApprovals, 10000);
+</script>
+</body>
+</html>
