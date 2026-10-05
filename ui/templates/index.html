@@ -393,6 +393,44 @@
       .ws-grid    { grid-template-columns: repeat(3, 1fr); }
       .health-grid{ grid-template-columns: repeat(2, 1fr); }
     }
+    /* ── Goal Tier ── */
+    .tier-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px;
+      display: flex; flex-direction: column; gap: 4px;
+      transition: border-color .2s;
+    }
+    .tier-card.unlocked { border-color: var(--green); }
+    .tier-card.current  { border-color: var(--accent); box-shadow: 0 0 10px rgba(0,212,255,.15); }
+    .tier-card.locked   { opacity: .5; }
+    .tier-name { font-size: 10px; font-weight: bold; color: var(--text); }
+    .tier-target { font-size: 9px; color: var(--muted); }
+    .tier-unlocks { font-size: 8px; color: var(--accent); margin-top: 2px; }
+
+    /* ── Intelligence scores ── */
+    .score-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px;
+      display: flex; flex-direction: column; gap: 5px;
+    }
+    .score-ws   { font-size: 10px; font-weight: bold; color: var(--text); }
+    .score-bar-bg { background: var(--surface3); border-radius: 3px; height: 5px; overflow: hidden; }
+    .score-bar { height: 100%; border-radius: 3px; transition: width .5s ease; }
+    .score-bar.scale       { background: var(--green); }
+    .score-bar.maintain    { background: var(--accent); }
+    .score-bar.investigate { background: var(--yellow); }
+    .score-bar.pause       { background: var(--red); }
+    .score-meta { display: flex; justify-content: space-between; font-size: 8px; color: var(--muted); }
+    .rec-badge  { font-size: 7px; padding: 1px 5px; border-radius: 3px; text-transform: uppercase; letter-spacing: .5px; }
+    .rec-scale       { background: rgba(16,185,129,.2); color: var(--green); }
+    .rec-maintain    { background: rgba(0,212,255,.15); color: var(--accent); }
+    .rec-investigate { background: rgba(245,158,11,.2); color: var(--yellow); }
+    .rec-pause       { background: rgba(239,68,68,.2);  color: var(--red); }
+
     /* ── Asset Gallery ── */
     .asset-card {
       background: var(--surface);
@@ -553,6 +591,38 @@
         <div class="stat-value txt-red" id="st-failed">0</div>
         <div class="stat-sub">all time</div>
       </div>
+    </div>
+
+    <!-- Goal Tier Panel -->
+    <div class="section" id="tier-panel">
+      <div class="section-header">
+        <div class="section-title">🎯 Goal Tier — <span id="tier-label" style="color:var(--accent)">Bootstrap</span></div>
+        <span class="badge" id="tier-badge" style="background:var(--surface3);color:var(--yellow)">$0.00 / day</span>
+      </div>
+      <!-- tier progress bar -->
+      <div style="margin:8px 0 4px">
+        <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--muted);margin-bottom:4px">
+          <span id="tier-current-label">Tier 0: Bootstrap</span>
+          <span id="tier-next-label">Next: First Dollar @ $1/day</span>
+        </div>
+        <div style="background:var(--surface2);border-radius:4px;height:8px;overflow:hidden;border:1px solid var(--border)">
+          <div id="tier-bar" style="height:100%;background:linear-gradient(90deg,var(--accent2),var(--accent));width:0%;transition:width .6s ease;border-radius:4px"></div>
+        </div>
+        <div style="font-size:9px;color:var(--muted);margin-top:3px"><span id="tier-pct">0%</span> toward next unlock</div>
+      </div>
+      <!-- unlock tiers -->
+      <div id="tier-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-top:10px"></div>
+      <!-- next unlock preview -->
+      <div id="tier-next-unlock" style="margin-top:8px;font-size:10px;color:var(--muted)"></div>
+    </div>
+
+    <!-- Workstream Intelligence -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-title">🧠 Workstream Intelligence</div>
+        <span style="font-size:9px;color:var(--muted)">Updated each cycle</span>
+      </div>
+      <div id="ws-scores-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:8px;padding:4px 0"></div>
     </div>
 
     <!-- Workstream Grid -->
@@ -1088,6 +1158,7 @@
       loadMemory(),
       loadAssets(),
       loadStores(),
+      loadIntelligence(),
     ]);
     document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
   }
@@ -1102,6 +1173,83 @@
     if (e.key === 'Escape') hideCreateModal();
     if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); showCreateModal(); }
   });
+
+  // ── Intelligence / Goal Tier / Workstream Scores ──
+  async function loadIntelligence() {
+    try {
+      const data = await api('/api/intelligence');
+      renderTier(data.tier, data.unlock_tiers);
+      renderScores(data.scores);
+    } catch(e) {}
+  }
+
+  function renderTier(tier, allTiers) {
+    if (!tier || !allTiers) return;
+    const rev = tier.daily_revenue || 0;
+    document.getElementById('tier-label').textContent = tier.tier_label || 'Bootstrap';
+    document.getElementById('tier-badge').textContent = `$${rev.toFixed(2)} / day`;
+    document.getElementById('tier-bar').style.width = (tier.progress_pct || 0) + '%';
+    document.getElementById('tier-pct').textContent = (tier.progress_pct || 0).toFixed(1) + '%';
+    document.getElementById('tier-current-label').textContent = `Tier ${tier.current_tier}: ${tier.tier_label}`;
+    document.getElementById('tier-next-label').textContent = tier.next_tier !== null
+      ? `Next: ${tier.next_tier_label} @ $${tier.next_tier_target}/day`
+      : '✅ MAX TIER REACHED';
+
+    const unlocked = new Set(tier.unlocked_workstreams || []);
+    const grid = document.getElementById('tier-grid');
+    grid.innerHTML = allTiers.map(t => {
+      const isUnlocked = rev >= t.daily_target;
+      const isCurrent  = tier.current_tier === t.tier;
+      const cls = isCurrent ? 'current' : isUnlocked ? 'unlocked' : 'locked';
+      const icon = isUnlocked ? (isCurrent ? '▶' : '✓') : '🔒';
+      return `<div class="tier-card ${cls}">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span class="tier-name">${icon} ${t.label}</span>
+          <span style="font-size:8px;color:var(--muted)">Tier ${t.tier}</span>
+        </div>
+        <div class="tier-target">$${t.daily_target}/day${t.daily_target === 0 ? ' (start)' : ''}</div>
+        <div class="tier-unlocks">${t.unlocks.join(', ')}</div>
+        <div style="font-size:8px;color:var(--muted);margin-top:2px">${t.description}</div>
+      </div>`;
+    }).join('');
+
+    if (tier.next_tier !== null) {
+      const remaining = Math.max(0, tier.next_tier_target - rev);
+      document.getElementById('tier-next-unlock').textContent =
+        `$${remaining.toFixed(2)}/day needed to unlock: ${(tier.next_tier_unlocks || []).join(', ')}`;
+    } else {
+      document.getElementById('tier-next-unlock').textContent = '🚀 All workstreams unlocked. Focus on scaling revenue.';
+    }
+  }
+
+  function renderScores(scores) {
+    const grid = document.getElementById('ws-scores-grid');
+    if (!scores || !Object.keys(scores).length) {
+      grid.innerHTML = '<div style="color:var(--muted);font-size:11px;padding:10px;grid-column:1/-1">Run cycles to generate workstream scores.</div>';
+      return;
+    }
+    const sorted = Object.entries(scores).sort((a,b) => b[1].score - a[1].score);
+    grid.innerHTML = sorted.map(([ws, s]) => {
+      const recClass = s.recommendation || 'maintain';
+      const trend = s.trend === 'rising' ? '↑' : s.trend === 'falling' ? '↓' : s.trend === 'new' ? '★' : '→';
+      const trendColor = s.trend === 'rising' ? 'var(--green)' : s.trend === 'falling' ? 'var(--red)' : 'var(--muted)';
+      return `<div class="score-card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span class="score-ws">${ws.replace(/_/g,' ')}</span>
+          <span style="color:${trendColor};font-size:11px">${trend}</span>
+        </div>
+        <div class="score-bar-bg">
+          <div class="score-bar ${recClass}" style="width:${s.score}%"></div>
+        </div>
+        <div class="score-meta">
+          <span>${s.score}/100</span>
+          <span>${(s.success_rate*100).toFixed(0)}% success</span>
+          <span>$${(s.total_revenue||0).toFixed(2)} rev</span>
+        </div>
+        <div><span class="rec-badge rec-${recClass}">${recClass}</span></div>
+      </div>`;
+    }).join('');
+  }
 
   // ── Asset Gallery ──
   async function loadAssets() {

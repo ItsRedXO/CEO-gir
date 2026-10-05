@@ -27,6 +27,11 @@ from ceo.dispatcher import get_dispatcher
 from ceo.workstreams.registry import get_workstream_summary
 from ceo.agents.ceo_brain import get_brain
 from ceo.agents.auto_pilot import get_auto_pilot, cycle_report_to_dict
+from ceo.intelligence import (
+    load_scores, load_tier_state, score_workstreams,
+    persist_scores, persist_tier_state,
+    UNLOCK_TIERS,
+)
 
 DB_PATH = os.environ.get("CEO_GIR_DB", "ceo_gir.db")
 POLICY = SafetyPolicy(
@@ -341,6 +346,22 @@ def api_record_revenue():
         )
         conn.commit()
         return jsonify({"recorded": amount, "workstream_id": workstream_id})
+    finally:
+        conn.close()
+
+
+@app.route("/api/intelligence")
+def api_intelligence():
+    """Workstream scores, tier state, and unlock progress."""
+    conn = get_db()
+    try:
+        scores = load_scores(conn)
+        tier   = load_tier_state(conn)
+        if not tier:
+            from ceo.db import get_daily_revenue as _dr
+            tier = persist_tier_state(conn, _dr(conn))
+            conn.commit()
+        return jsonify({"scores": scores, "tier": tier, "unlock_tiers": UNLOCK_TIERS})
     finally:
         conn.close()
 

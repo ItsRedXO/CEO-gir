@@ -28,6 +28,13 @@ from ..orchestration import create_and_queue_task
 from ..learning import learn_from_completion, EVAL_SCALED, EVAL_VALIDATED
 from ..replanning import determine_next_action, replan_after_evaluation
 from ..economics import EconomicOutcome, calculate_economic_outcome
+from ..intelligence import (
+    score_workstreams, persist_scores, load_scores,
+    persist_tier_state, load_tier_state,
+    get_unlocked_workstreams, get_current_tier, get_next_tier,
+    find_clone_candidates, record_intelligence_cycle,
+    UNLOCK_TIERS,
+)
 
 
 # ── Pipeline definitions ──────────────────────────────────────────────────
@@ -336,57 +343,124 @@ class CEOBrain:
 
     def run_cycle(self, conn: sqlite3.Connection) -> dict:
         """
-        One full decision cycle. Returns a summary of what was decided.
+        One full adaptive decision cycle:
+          1. Record revenue from completed tasks
+          2. Score all workstreams (reinforcement)
+          3. Check goal tier / unlock new workstreams
+          4. Shift resources: scale winners, throttle underperformers
+          5. Clone high-scoring pipelines
+          6. Fill gaps in unlocked workstreams
         """
         cycle_start = time.monotonic()
-        created_tasks = []
-        evaluated_tasks = []
+        created_tasks   = []
         revenue_recorded = 0.0
+        clones_spawned   = 0
 
-        # 1. Evaluate completed tasks and record revenue
-        completed = list_tasks(conn, status="completed", limit=50)
+        # ── 1. Revenue harvest ────────────────────────────────────────────
+        completed = list_tasks(conn, status="completed", limit=100)
+        seen_tasks = set()
         for task in completed:
+            if task["task_id"] in seen_tasks:
+                continue
+            seen_tasks.add(task["task_id"])
             if task.get("result_json"):
                 rev = self._extract_revenue(task)
                 if rev > 0:
-                    record_metric(
-                        conn,
-                        metric_name="task_revenue",
-                        metric_value=rev,
-                        task_id=task["task_id"],
-                        workstream_id=task.get("workstream_id"),
-                        context={"source": "worker_output"},
-                    )
-                    revenue_recorded += rev
+                    # Only record once — check if already recorded
+                    already = conn.execute(
+                        "SELECT obs_id FROM ceo_metric_observations WHERE task_id=? AND metric_name='task_revenue'",
+                        (task["task_id"],),
+                    ).fetchone()
+                    if not already:
+                        record_metric(
+                            conn,
+                            metric_name="task_revenue",
+                            metric_value=rev,
+                            task_id=task["task_id"],
+                            workstream_id=task.get("workstream_id"),
+                            context={"source": "worker_output"},
+                        )
+                        revenue_recorded += rev
 
-        # 2. Assess workstream health — how many active tasks per workstream?
-        active_by_ws = self._count_active_by_workstream(conn)
+        # ── 2. Score workstreams ──────────────────────────────────────────
+        scores = score_workstreams(conn)
+        persist_scores(conn, scores)
 
-        # 3. Decide which workstreams need new pipelines
+        # ── 3. Goal tier check ────────────────────────────────────────────
         daily_revenue = get_daily_revenue(conn)
-        metrics       = get_total_metrics(conn)
+        tier_state    = persist_tier_state(conn, daily_revenue)
+        unlocked_ws   = get_unlocked_workstreams(daily_revenue)
 
-        for ws_id, target in WORKSTREAM_TARGETS.items():
-            current_active = active_by_ws.get(ws_id, 0) + active_by_ws.get("research", 0)
-            desired = WORKSTREAM_PARALLELISM.get(ws_id, 2)
+        # ── 4. Adaptive parallelism: winners get more slots ───────────────
+        active_by_ws  = self._count_active_by_workstream(conn)
+        parallelism   = dict(WORKSTREAM_PARALLELISM)  # start with defaults
+
+        for ws_id, score in scores.items():
+            if score.recommendation == "scale":
+                parallelism[ws_id] = parallelism.get(ws_id, 2) + 2
+            elif score.recommendation == "pause":
+                parallelism[ws_id] = max(0, parallelism.get(ws_id, 2) - 1)
+            elif score.recommendation == "investigate":
+                parallelism[ws_id] = max(1, parallelism.get(ws_id, 2) - 1)
+
+        # ── 5. Clone high-scoring pipelines ──────────────────────────────
+        candidates = find_clone_candidates(conn, scores, min_score=65.0)
+        for candidate in candidates[:3]:  # max 3 clones per cycle
+            ws_id = candidate.workstream_id
+            matching_pipelines = [k for k in PIPELINES if k.startswith(ws_id) or k.startswith(ws_id.replace("_", ""))]
+            for pk in matching_pipelines[:1]:
+                tasks = PIPELINES[pk]()
+                cloned = False
+                for step in tasks:
+                    title_variant = f"[SCALED] {step['title']}"
+                    existing = conn.execute(
+                        "SELECT task_id FROM ceo_tasks WHERE title=? AND status IN ('queued','assigned','in_progress')",
+                        (title_variant,),
+                    ).fetchone()
+                    if existing:
+                        continue
+                    create_and_queue_task(
+                        conn,
+                        title=title_variant,
+                        workstream_id=step["workstream_id"],
+                        priority=max(1, step["priority"] - 1),  # higher priority
+                        input_data=step["input_data"],
+                        required_capabilities=step["capabilities"],
+                        created_by="ceo_brain_clone",
+                    )
+                    cloned = True
+                if cloned:
+                    clones_spawned += 1
+
+        # ── 6. Fill gaps in unlocked workstreams ──────────────────────────
+        for ws_id in WORKSTREAM_TARGETS:
+            # Skip locked workstreams
+            if ws_id not in unlocked_ws:
+                continue
+
+            # Skip paused workstreams (unless they have zero tasks ever — then try once)
+            ws_score = scores.get(ws_id)
+            if ws_score and ws_score.recommendation == "pause" and ws_score.total_tasks > 5:
+                continue
+
+            current_active = active_by_ws.get(ws_id, 0)
+            desired        = parallelism.get(ws_id, 2)
 
             if current_active >= desired * 4:
-                continue  # workstream fully loaded
+                continue
 
-            pipelines_for_ws = [k for k in PIPELINES if k.startswith(ws_id)]
-            pipelines_to_add = max(0, desired - (current_active // 4))
+            pipelines_for_ws = [k for k in PIPELINES if k.startswith(ws_id.replace("_", "")[:6])]
+            pipelines_to_add = max(0, desired - (current_active // max(1, len(pipelines_for_ws))))
 
             for pipeline_key in pipelines_for_ws[:pipelines_to_add]:
                 tasks = PIPELINES[pipeline_key]()
                 for step in tasks:
-                    # Avoid duplicates: skip if same title already queued/assigned
                     existing = conn.execute(
                         "SELECT task_id FROM ceo_tasks WHERE title=? AND status IN ('queued','assigned','in_progress')",
                         (step["title"],),
                     ).fetchone()
                     if existing:
                         continue
-
                     task_id = create_and_queue_task(
                         conn,
                         title=step["title"],
@@ -398,14 +472,26 @@ class CEOBrain:
                     )
                     created_tasks.append({"task_id": task_id, "title": step["title"]})
 
+        # ── 7. Record intelligence cycle ──────────────────────────────────
+        record_intelligence_cycle(conn, daily_revenue, scores, clones_spawned, tier_state)
         conn.commit()
-        duration_ms = int((time.monotonic() - cycle_start) * 1000)
 
+        duration_ms = int((time.monotonic() - cycle_start) * 1000)
         return {
-            "cycle_duration_ms": duration_ms,
-            "tasks_created": len(created_tasks),
-            "revenue_recorded": round(revenue_recorded, 2),
-            "daily_revenue": daily_revenue,
+            "cycle_duration_ms":  duration_ms,
+            "tasks_created":      len(created_tasks),
+            "clones_spawned":     clones_spawned,
+            "revenue_recorded":   round(revenue_recorded, 2),
+            "daily_revenue":      daily_revenue,
+            "current_tier":       tier_state.get("tier_label", "Bootstrap"),
+            "next_tier":          tier_state.get("next_tier_label"),
+            "next_tier_target":   tier_state.get("next_tier_target"),
+            "progress_pct":       tier_state.get("progress_pct", 0),
+            "unlocked_workstreams": sorted(unlocked_ws),
+            "top_workstreams":    [
+                {"ws": s.workstream_id, "score": s.score, "rec": s.recommendation}
+                for s in sorted(scores.values(), key=lambda x: x.score, reverse=True)[:5]
+            ],
             "created": created_tasks,
         }
 
