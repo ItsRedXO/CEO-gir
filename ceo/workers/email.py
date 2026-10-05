@@ -27,7 +27,7 @@ class ListBuildingWorker(BaseWorker):
             success=True,
             output=result,
             duration_ms=duration_ms,
-            economic_data={"revenue_estimate": result["projected_monthly_revenue"], "spend": result["cost"]},
+            economic_data={"revenue_estimate": 0.0, "spend": 0.0},
         )
 
     def _parse_input(self, task: dict) -> dict:

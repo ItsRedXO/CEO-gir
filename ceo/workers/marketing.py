@@ -45,7 +45,7 @@ class AffiliateWorker(BaseWorker):
             output={"campaign": campaign, "platform": "affiliate", "next_step": "publish_content"},
             duration_ms=duration_ms,
             economic_data={
-                "revenue_estimate": campaign["estimated_monthly_revenue"],
+                "revenue_estimate": 0.0,
                 "spend": 0.0,
             },
         )
@@ -214,7 +214,7 @@ class SocialMediaWorker(BaseWorker):
             output={"distribution_plan": distribution_plan, "next_step": "create_content"},
             duration_ms=duration_ms,
             economic_data={
-                "revenue_estimate": distribution_plan["estimated_revenue_cpm"],
+                "revenue_estimate": 0.0,
                 "spend": 0.0,
             },
         )
