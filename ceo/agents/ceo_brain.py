@@ -384,6 +384,23 @@ def _kofi_pipeline(asset_type: str = "printable", style: str = "minimal") -> lis
     ]
 
 
+def _pinterest_pipeline(asset_type: str = "printable", style: str = "minimal") -> list[dict]:
+    """Pin a Gumroad product to Pinterest for organic traffic."""
+    return [
+        {
+            "title": f"Pin {style} {asset_type} to Pinterest",
+            "workstream_id": "pinterest",
+            "capabilities": ["pinterest", "traffic"],
+            "priority": 3,
+            "input_data": {
+                "asset_type": asset_type,
+                "style": style,
+                "formats": ["PDF", "PNG"],
+            },
+        },
+    ]
+
+
 # ── Pipeline catalog ──────────────────────────────────────────────────────
 PIPELINES = {
     "etsy_boho":       lambda: _etsy_pipeline("boho", "printable"),
@@ -433,6 +450,13 @@ PIPELINES = {
     "reddit_svg_wildflower":     lambda: _reddit_pipeline("svg_bundle", "wildflower"),
     "reddit_game_assets":        lambda: _reddit_pipeline("game_asset", "low_poly"),
     "reddit_logo_minimal":       lambda: _reddit_pipeline("logo", "minimal"),
+    # Pinterest organic traffic pipelines
+    "pinterest_printable_boho":    lambda: _pinterest_pipeline("printable", "boho"),
+    "pinterest_printable_minimal": lambda: _pinterest_pipeline("printable", "minimal"),
+    "pinterest_svg_wildflower":    lambda: _pinterest_pipeline("svg_bundle", "wildflower"),
+    "pinterest_logo_corporate":    lambda: _pinterest_pipeline("logo", "corporate"),
+    "pinterest_planner_pastel":    lambda: _pinterest_pipeline("planner", "pastel"),
+    "pinterest_celestial_print":   lambda: _pinterest_pipeline("printable", "celestial"),
 }
 
 # Revenue targets per workstream (daily $)
@@ -444,6 +468,7 @@ WORKSTREAM_TARGETS = {
     "gumroad":   8.0,
     "assets_2d": 15.0,
     "assets_3d": 25.0,
+    "pinterest": 0.0,   # traffic driver, not direct revenue
 }
 
 # How many parallel pipelines per workstream to run
@@ -454,6 +479,7 @@ WORKSTREAM_PARALLELISM = {
     "youtube":   2,
     "assets_2d": 3,
     "assets_3d": 2,
+    "pinterest": 3,
 }
 
 
@@ -564,6 +590,7 @@ class CEOBrain:
             "etsy":      "etsy_",
             "fiverr":    "fiverr_",
             "affiliate": "affiliate_",
+            "pinterest": "pinterest_",
         }
 
         for ws_id in WORKSTREAM_TARGETS:

@@ -7,12 +7,49 @@ import json
 import time
 import logging
 import threading
+import collections
+import queue as _queue
 from datetime import datetime, timezone
-from flask import Flask, render_template, jsonify, request, abort
+from flask import Flask, render_template, jsonify, request, abort, Response
 from flask_cors import CORS
 
 log = logging.getLogger("ceo_autopilot")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
+
+# ── SSE log stream ─────────────────────────────────────────────────────────────
+_log_ring: collections.deque = collections.deque(maxlen=150)
+_log_subscribers: list[_queue.Queue] = []
+_log_lock = threading.Lock()
+
+
+class _SSELogHandler(logging.Handler):
+    """Forwards log records to SSE subscribers and the ring buffer."""
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            msg = json.dumps({
+                "ts":    int(record.created * 1000),
+                "level": record.levelname,
+                "name":  record.name.split(".")[-1][:20],
+                "msg":   self.format(record)[:300],
+            })
+            _log_ring.append(msg)
+            with _log_lock:
+                dead = [q for q in _log_subscribers if q.full()]
+                for d in dead:
+                    _log_subscribers.remove(d)
+                for q in _log_subscribers:
+                    try:
+                        q.put_nowait(msg)
+                    except _queue.Full:
+                        pass
+        except Exception:
+            pass
+
+
+_sse_handler = _SSELogHandler()
+_sse_handler.setFormatter(logging.Formatter("%(name)s %(levelname)s %(message)s"))
+_sse_handler.setLevel(logging.INFO)
+logging.getLogger().addHandler(_sse_handler)
 
 _autopilot_thread: threading.Thread | None = None
 _autopilot_active = False
@@ -706,6 +743,42 @@ def api_fiverr_post():
         return jsonify({"error": str(e)}), 500
     finally:
         conn.close()
+
+
+# ── SSE log stream route ──────────────────────────────────────────────────
+
+
+@app.route("/api/logs/stream")
+def api_logs_stream():
+    """Server-Sent Events — streams live log entries to the dashboard."""
+    q: _queue.Queue = _queue.Queue(maxsize=200)
+    with _log_lock:
+        _log_subscribers.append(q)
+
+    def generate():
+        yield "retry: 2000\n\n"
+        # Replay ring buffer so the panel shows recent history on connect
+        for entry in list(_log_ring):
+            yield f"data: {entry}\n\n"
+        try:
+            while True:
+                try:
+                    msg = q.get(timeout=15)
+                    yield f"data: {msg}\n\n"
+                except _queue.Empty:
+                    yield ": keepalive\n\n"
+        finally:
+            with _log_lock:
+                try:
+                    _log_subscribers.remove(q)
+                except ValueError:
+                    pass
+
+    return Response(
+        generate(),
+        mimetype="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 # ── UI Routes ──────────────────────────────────────────────────────────────

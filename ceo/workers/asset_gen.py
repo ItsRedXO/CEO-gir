@@ -22,6 +22,34 @@ else:
     log.warning("❌ GUMROAD_ACCESS_TOKEN not set — Gumroad posting DISABLED")
 
 
+def _ai_description(name: str, asset_type: str, style: str, formats: list, price: float) -> str:
+    """Generate a compelling product description via Pollinations text API (free)."""
+    try:
+        from ..providers.image_gen import generate_text
+        fmt_str = ", ".join(formats[:4]) if formats else "digital files"
+        prompt = (
+            f"Write a compelling 120-word Gumroad product description for a digital download. "
+            f"Product: '{name}'. Type: {style} {asset_type.replace('_', ' ')}. "
+            f"Formats: {fmt_str}. Price: ${price:.2f}. "
+            f"Include: what it is, who it's for, what's included, and a purchase call to action. "
+            f"Tone: warm, professional. Plain text only, no markdown, no hashtags."
+        )
+        text = generate_text(prompt, model="openai", timeout=15)
+        if text and len(text) > 60:
+            log.info("AI description generated (%d chars) for '%s'", len(text), name[:40])
+            return text[:500]
+    except Exception as e:
+        log.warning("AI description failed (%s) — using fallback", e)
+    # Fallback: structured generic copy
+    fmt_str = ", ".join(formats[:4]) if formats else "digital files"
+    return (
+        f"{style.title()} {asset_type.replace('_', ' ').title()} — premium digital download. "
+        f"Includes: {fmt_str}. High resolution, print-ready files. "
+        f"Commercial license included. Instant download — yours forever after purchase. "
+        f"Perfect for personal and commercial projects."
+    )
+
+
 def _post_to_gumroad(name: str, description: str, price_usd: float, preview_url: str = "") -> dict:
     """Create a real Gumroad product. Returns {url, product_id} or {} on failure."""
     log.info("_post_to_gumroad called: name='%s' price=$%.2f token_set=%s", name[:60], price_usd, bool(_GUMROAD_TOKEN))
@@ -37,18 +65,39 @@ def _post_to_gumroad(name: str, description: str, price_usd: float, preview_url:
             "price": price_cents,
             "published": "true",
         }).encode()
-        req = urllib.request.Request(
-            "https://api.gumroad.com/v2/products",
-            data=payload,
-            method="POST",
-            headers={"Content-Type": "application/x-www-form-urlencoded"},
-        )
-        try:
-            with urllib.request.urlopen(req, timeout=20) as resp:
-                data = _json.loads(resp.read())
-        except urllib.error.HTTPError as http_err:
-            body = http_err.read().decode(errors="replace")
-            log.error("Gumroad HTTP %s: %s", http_err.code, body)
+
+        _MAX_RETRIES = 3
+        data = None
+        for _attempt in range(_MAX_RETRIES):
+            req = urllib.request.Request(
+                "https://api.gumroad.com/v2/products",
+                data=payload,
+                method="POST",
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=20) as resp:
+                    data = _json.loads(resp.read())
+                break  # success — exit retry loop
+            except urllib.error.HTTPError as http_err:
+                body = http_err.read().decode(errors="replace")
+                if http_err.code == 429 and _attempt < _MAX_RETRIES - 1:
+                    _wait = 2 ** _attempt
+                    log.warning("Gumroad rate limited (429) — retry %d/%d in %ds", _attempt + 1, _MAX_RETRIES, _wait)
+                    time.sleep(_wait)
+                    continue
+                log.error("Gumroad HTTP %s: %s", http_err.code, body)
+                return {}
+            except (urllib.error.URLError, OSError) as net_err:
+                if _attempt < _MAX_RETRIES - 1:
+                    _wait = 2 ** _attempt
+                    log.warning("Gumroad network error — retry %d/%d in %ds: %s", _attempt + 1, _MAX_RETRIES, _wait, net_err)
+                    time.sleep(_wait)
+                    continue
+                log.error("Gumroad network error: %s", net_err)
+                return {}
+
+        if data is None:
             return {}
         if data.get("success"):
             p = data["product"]
@@ -371,10 +420,13 @@ class Asset2DWorker(BaseWorker):
                 "preview_url": preview_url if i == 0 else None,
             })
 
+        # Generate AI product description (free, Pollinations text API)
+        ai_desc = _ai_description(title, asset_type, style, spec["formats"], price)
+
         # Try to post to Gumroad if token is set
         gumroad_result = _post_to_gumroad(
             name=title,
-            description=f"{style.title()} {asset_type.replace('_', ' ')} — {', '.join(spec['formats'])} formats — instant download.",
+            description=ai_desc,
             price_usd=price,
             preview_url=preview_url,
         )

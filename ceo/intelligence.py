@@ -34,7 +34,7 @@ UNLOCK_TIERS: list[dict] = [
         "tier": 0,
         "label": "Bootstrap",
         "daily_target": 0.0,
-        "unlocks": ["research", "trends", "assets_2d", "youtube", "gumroad"],
+        "unlocks": ["research", "trends", "assets_2d", "youtube", "gumroad", "pinterest"],
         "description": "Foundation — 2D assets + free Gumroad store + YouTube Shorts (all free)",
     },
     {

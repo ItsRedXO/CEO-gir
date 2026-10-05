@@ -1234,6 +1234,34 @@
       </div>
     </div>
 
+    <!-- Live Feed (SSE log stream) -->
+    <div class="section" id="live-feed-section">
+      <div class="section-header" style="cursor:pointer" onclick="toggleLiveFeed()">
+        <div class="section-title">
+          📡 Live Feed
+          <span id="live-feed-dot" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--muted);margin-left:8px;vertical-align:middle"></span>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span id="live-feed-count" style="font-size:10px;color:var(--muted)">0 events</span>
+          <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();clearLiveFeed()">Clear</button>
+          <span id="live-feed-toggle-label" style="font-size:10px;color:var(--muted)">▼</span>
+        </div>
+      </div>
+      <div id="live-feed-wrap" style="display:block">
+        <div id="live-feed-log" style="
+          background:var(--surface2);
+          border:1px solid var(--border);
+          border-radius:4px;
+          height:280px;
+          overflow-y:auto;
+          padding:8px 10px;
+          font-size:11px;
+          font-family:var(--font);
+          line-height:1.6;
+        "></div>
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -2183,6 +2211,78 @@
     } catch(e) {}
   }
 
+  // ── Live Feed (SSE) ──────────────────────────────────────────────────────
+  let _liveFeedCount = 0;
+  let _liveFeedVisible = true;
+  let _liveFeedEs = null;
+
+  const _LEVEL_COLORS = {
+    ERROR:   'var(--red)',
+    WARNING: 'var(--yellow)',
+    WARN:    'var(--yellow)',
+    INFO:    'var(--accent)',
+    DEBUG:   'var(--muted)',
+    CRITICAL:'var(--orange)',
+  };
+
+  function _appendLiveFeedEntry(data) {
+    const box = document.getElementById('live-feed-log');
+    if (!box) return;
+    let parsed;
+    try { parsed = JSON.parse(data); } catch(e) { return; }
+    const color = _LEVEL_COLORS[parsed.level] || 'var(--text)';
+    const ts    = new Date(parsed.ts).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+    const line  = document.createElement('div');
+    line.style.cssText = `display:flex;gap:8px;padding:1px 0;border-bottom:1px solid rgba(26,45,69,.4);animation:slide-in .15s ease`;
+    line.innerHTML = `<span style="color:var(--muted);flex-shrink:0;min-width:68px">${ts}</span>`
+                   + `<span style="color:${color};flex-shrink:0;min-width:58px">${parsed.level}</span>`
+                   + `<span style="color:var(--muted);flex-shrink:0;min-width:80px">[${parsed.name}]</span>`
+                   + `<span style="color:var(--text);word-break:break-word">${parsed.msg.replace(/</g,'&lt;')}</span>`;
+    box.appendChild(line);
+    // Keep max 120 entries
+    while (box.children.length > 120) box.removeChild(box.firstChild);
+    box.scrollTop = box.scrollHeight;
+    _liveFeedCount++;
+    const cnt = document.getElementById('live-feed-count');
+    if (cnt) cnt.textContent = _liveFeedCount + ' events';
+  }
+
+  function _startLiveFeed() {
+    if (_liveFeedEs) return;
+    const dot = document.getElementById('live-feed-dot');
+    if (dot) { dot.style.background = 'var(--yellow)'; dot.style.animation = 'pulse 1s infinite'; }
+    _liveFeedEs = new EventSource('/api/logs/stream');
+    _liveFeedEs.onopen = () => {
+      if (dot) { dot.style.background = 'var(--green)'; dot.style.animation = 'pulse 2s infinite'; }
+    };
+    _liveFeedEs.onmessage = (e) => {
+      if (e.data) _appendLiveFeedEntry(e.data);
+    };
+    _liveFeedEs.onerror = () => {
+      if (dot) { dot.style.background = 'var(--red)'; dot.style.animation = 'pulse .5s infinite'; }
+      _liveFeedEs.close();
+      _liveFeedEs = null;
+      // Reconnect after 5s
+      setTimeout(_startLiveFeed, 5000);
+    };
+  }
+
+  function clearLiveFeed() {
+    const box = document.getElementById('live-feed-log');
+    if (box) box.innerHTML = '';
+    _liveFeedCount = 0;
+    const cnt = document.getElementById('live-feed-count');
+    if (cnt) cnt.textContent = '0 events';
+  }
+
+  function toggleLiveFeed() {
+    _liveFeedVisible = !_liveFeedVisible;
+    const wrap  = document.getElementById('live-feed-wrap');
+    const label = document.getElementById('live-feed-toggle-label');
+    if (wrap)  wrap.style.display  = _liveFeedVisible ? 'block' : 'none';
+    if (label) label.textContent   = _liveFeedVisible ? '▼' : '▶';
+  }
+
   // ── Init ──
   loadAll();
   loadAutopilotStatus();
@@ -2191,6 +2291,7 @@
   setInterval(loadAutopilotStatus, 10000);
   setInterval(updateLiveMission, 4000);
   logEntry('CEO GIR command center online', 'ok');
+  _startLiveFeed();
 </script>
 </body>
 </html>

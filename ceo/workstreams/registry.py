@@ -15,6 +15,7 @@ from ..workers.asset_gen import Asset2DWorker, Asset3DWorker
 from ..workers.shorts import ShortsWorker
 from ..workers.reddit_traffic import RedditTrafficWorker
 from ..workers.kofi import KofiWorker
+from ..workers.pinterest import PinterestWorker
 
 
 @dataclass
@@ -213,6 +214,16 @@ WORKSTREAM_REGISTRY: dict[str, WorkstreamConfig] = {
         capabilities=["reddit_traffic", "social_media", "traffic", "promotion"],
         revenue_target_daily=0.0,
         icon="📣",
+    ),
+    "pinterest": WorkstreamConfig(
+        workstream_id="pinterest",
+        name="Pinterest",
+        description="Pin Gumroad products to Pinterest — organic traffic (set PINTEREST_EMAIL + PINTEREST_PASSWORD for auto-post)",
+        enabled=True,
+        worker_class=PinterestWorker,
+        capabilities=["pinterest", "traffic", "social_media", "digital_products", "pinning"],
+        revenue_target_daily=0.0,
+        icon="📌",
     ),
 }
 
