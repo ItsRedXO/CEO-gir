@@ -11,6 +11,7 @@ from ..workers.analytics import PerformanceAnalyticsWorker, RevenueAnalyticsWork
 from ..workers.trend import TrendResearchWorker, NicheAnalysisWorker, ProductResearchWorker
 from ..workers.delivery import ServiceDeliveryWorker, SalesTrackerWorker, PricingOptimizerWorker
 from ..workers.email import ListBuildingWorker, EmailCampaignWorker
+from ..workers.asset_gen import Asset2DWorker, Asset3DWorker
 
 
 @dataclass
@@ -156,6 +157,26 @@ WORKSTREAM_REGISTRY: dict[str, WorkstreamConfig] = {
         worker_class=PricingOptimizerWorker,
         capabilities=["pricing", "ab_testing", "price_optimization"],
         icon="💲",
+    ),
+    "assets_2d": WorkstreamConfig(
+        workstream_id="assets_2d",
+        name="2D Assets",
+        description="Printables, logos, SVG bundles, social templates",
+        enabled=True,
+        worker_class=Asset2DWorker,
+        capabilities=["2d_asset", "design", "printable", "logo", "svg", "illustration", "template_design", "social_graphics"],
+        revenue_target_daily=15.0,
+        icon="🎨",
+    ),
+    "assets_3d": WorkstreamConfig(
+        workstream_id="assets_3d",
+        name="3D Assets",
+        description="3D models for CGTrader, TurboSquid, Unity Asset Store",
+        enabled=True,
+        worker_class=Asset3DWorker,
+        capabilities=["3d_asset", "3d_model", "cg_asset", "game_asset", "character_model", "environment_design", "prop_creation"],
+        revenue_target_daily=25.0,
+        icon="🧊",
     ),
 }
 

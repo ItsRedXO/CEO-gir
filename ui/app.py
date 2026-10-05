@@ -345,6 +345,79 @@ def api_record_revenue():
         conn.close()
 
 
+@app.route("/api/assets")
+def api_assets():
+    """Return completed asset tasks with their preview SVGs and metadata."""
+    conn = get_db()
+    try:
+        import json as _json
+        rows = conn.execute(
+            """
+            SELECT task_id, title, workstream_id, status, result_json, updated_at
+            FROM ceo_tasks
+            WHERE workstream_id IN ('assets_2d','assets_3d','assets')
+              AND status = 'completed'
+              AND result_json IS NOT NULL
+            ORDER BY updated_at DESC
+            LIMIT 40
+            """,
+        ).fetchall()
+        assets = []
+        for row in rows:
+            result = {}
+            if row["result_json"]:
+                try:
+                    result = _json.loads(row["result_json"]) if isinstance(row["result_json"], str) else row["result_json"]
+                except Exception:
+                    pass
+            assets.append({
+                "task_id":      row["task_id"],
+                "title":        row["title"],
+                "workstream_id": row["workstream_id"],
+                "asset_type":   result.get("asset_type") or result.get("model_type") or "asset",
+                "style":        result.get("style", ""),
+                "preview_svg":  result.get("preview_svg") or result.get("output", {}).get("preview_svg"),
+                "formats":      result.get("formats", []),
+                "platforms":    result.get("platforms", []),
+                "listing_ready": result.get("listing_ready", False),
+                "price_usd":    (result.get("economic_data") or {}).get("price_usd", 0),
+                "updated_at":   row["updated_at"],
+            })
+        return jsonify(assets)
+    finally:
+        conn.close()
+
+
+@app.route("/api/stores")
+def api_stores():
+    """Return active store status across all platforms."""
+    conn = get_db()
+    try:
+        import json as _json
+        platforms = ["etsy", "fiverr", "cgtrader", "turbosquid", "creative_market", "gumroad"]
+        stores = []
+        for platform in platforms:
+            rows = conn.execute(
+                """
+                SELECT COUNT(*) as total,
+                       SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) as completed
+                FROM ceo_tasks
+                WHERE (workstream_id=? OR result_json LIKE ?)
+                  AND (title LIKE ? OR result_json LIKE ?)
+                """,
+                (platform.split("_")[0], f'%"{platform}"%', f"%{platform}%", f'%"{platform}"%'),
+            ).fetchone()
+            stores.append({
+                "platform": platform,
+                "label":    platform.replace("_", " ").title(),
+                "listings": rows["completed"] or 0,
+                "active":   (rows["completed"] or 0) > 0,
+            })
+        return jsonify(stores)
+    finally:
+        conn.close()
+
+
 # ── UI Routes ──────────────────────────────────────────────────────────────
 
 

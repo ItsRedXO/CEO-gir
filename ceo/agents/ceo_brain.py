@@ -193,6 +193,88 @@ def _youtube_pipeline(topic: str = "ai tools") -> list[dict]:
     ]
 
 
+def _asset2d_pipeline(asset_type: str = "printable", style: str = "minimal") -> list[dict]:
+    return [
+        {
+            "title": f"Trend research: 2D {asset_type} market",
+            "workstream_id": "research",
+            "capabilities": ["trend_research"],
+            "priority": 3,
+            "input_data": {"platform": "etsy", "asset_type": asset_type, "top_n": 5},
+        },
+        {
+            "title": f"Generate {style} {asset_type} asset pack",
+            "workstream_id": "assets_2d",
+            "capabilities": ["2d_asset", "design"],
+            "priority": 4,
+            "input_data": {"asset_type": asset_type, "style": style, "quantity": 3},
+        },
+        {
+            "title": f"List {style} {asset_type} on Etsy",
+            "workstream_id": "etsy",
+            "capabilities": ["listing", "etsy"],
+            "priority": 4,
+            "input_data": {"product_type": asset_type, "niche": style, "price_usd": 6.99},
+        },
+        {
+            "title": f"List {style} {asset_type} on Creative Market",
+            "workstream_id": "assets_2d",
+            "capabilities": ["2d_asset"],
+            "priority": 3,
+            "input_data": {"asset_type": asset_type, "style": style, "platform": "creative_market"},
+        },
+        {
+            "title": f"Track {style} {asset_type} sales performance",
+            "workstream_id": "analytics",
+            "capabilities": ["analytics", "reporting"],
+            "priority": 5,
+            "input_data": {"workstream_id": "assets_2d", "asset_type": asset_type, "period_days": 7},
+        },
+    ]
+
+
+def _asset3d_pipeline(model_type: str = "3d_model", style: str = "low_poly") -> list[dict]:
+    price_map = {"3d_model": 19.99, "game_asset": 14.99, "character": 29.99, "environment": 24.99, "prop": 9.99}
+    price = price_map.get(model_type, 19.99)
+    return [
+        {
+            "title": f"Trend research: 3D {model_type} demand",
+            "workstream_id": "research",
+            "capabilities": ["trend_research"],
+            "priority": 3,
+            "input_data": {"platform": "cgtrader", "model_type": model_type, "top_n": 5},
+        },
+        {
+            "title": f"Generate {style} {model_type}",
+            "workstream_id": "assets_3d",
+            "capabilities": ["3d_asset", "3d_model"],
+            "priority": 4,
+            "input_data": {"model_type": model_type, "style": style, "textured": True, "rigged": model_type == "character"},
+        },
+        {
+            "title": f"List {style} {model_type} on CGTrader",
+            "workstream_id": "assets_3d",
+            "capabilities": ["3d_asset"],
+            "priority": 4,
+            "input_data": {"model_type": model_type, "style": style, "platform": "cgtrader", "price_usd": price},
+        },
+        {
+            "title": f"List {style} {model_type} on TurboSquid",
+            "workstream_id": "assets_3d",
+            "capabilities": ["3d_asset"],
+            "priority": 4,
+            "input_data": {"model_type": model_type, "style": style, "platform": "turbosquid", "price_usd": price},
+        },
+        {
+            "title": f"Track 3D {model_type} sales: {style}",
+            "workstream_id": "analytics",
+            "capabilities": ["analytics", "reporting"],
+            "priority": 5,
+            "input_data": {"workstream_id": "assets_3d", "model_type": model_type, "period_days": 7},
+        },
+    ]
+
+
 # ── Pipeline catalog ──────────────────────────────────────────────────────
 PIPELINES = {
     "etsy_boho":       lambda: _etsy_pipeline("boho", "printable"),
@@ -210,6 +292,19 @@ PIPELINES = {
     "youtube_ai":      lambda: _youtube_pipeline("ai tools"),
     "youtube_hustle":  lambda: _youtube_pipeline("side hustle"),
     "youtube_finance": lambda: _youtube_pipeline("personal finance"),
+    # 2D Asset pipelines
+    "2d_printable_boho":     lambda: _asset2d_pipeline("printable", "boho"),
+    "2d_printable_minimal":  lambda: _asset2d_pipeline("printable", "minimal"),
+    "2d_svg_wildflower":     lambda: _asset2d_pipeline("svg_bundle", "wildflower"),
+    "2d_logo_corporate":     lambda: _asset2d_pipeline("logo", "corporate"),
+    "2d_template_social":    lambda: _asset2d_pipeline("template", "minimal"),
+    "2d_planner_pastel":     lambda: _asset2d_pipeline("planner", "pastel"),
+    # 3D Asset pipelines
+    "3d_lowpoly_prop":       lambda: _asset3d_pipeline("prop", "low_poly"),
+    "3d_lowpoly_env":        lambda: _asset3d_pipeline("environment", "low_poly"),
+    "3d_character_fantasy":  lambda: _asset3d_pipeline("character", "fantasy"),
+    "3d_scifi_model":        lambda: _asset3d_pipeline("3d_model", "sci_fi"),
+    "3d_game_asset_cartoon": lambda: _asset3d_pipeline("game_asset", "cartoon"),
 }
 
 # Revenue targets per workstream (daily $)
@@ -218,6 +313,8 @@ WORKSTREAM_TARGETS = {
     "fiverr":    15.0,
     "affiliate": 25.0,
     "youtube":   20.0,
+    "assets_2d": 15.0,
+    "assets_3d": 25.0,
 }
 
 # How many parallel pipelines per workstream to run
@@ -226,6 +323,8 @@ WORKSTREAM_PARALLELISM = {
     "fiverr":    2,
     "affiliate": 2,
     "youtube":   2,
+    "assets_2d": 3,
+    "assets_3d": 2,
 }
 
 
