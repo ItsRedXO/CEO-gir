@@ -385,6 +385,315 @@
     ::-webkit-scrollbar-track { background: var(--bg); }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
+    /* ══════════════════════════════════════════════════════════
+       GAME VIEW — Robot Agents + Room Cards
+    ══════════════════════════════════════════════════════════ */
+
+    @keyframes rw-bounce  { 0%,100%{transform:translateY(0)} 45%{transform:translateY(-5px)} }
+    @keyframes rw-idle    { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-2px)} }
+    @keyframes eye-blink  { 0%,90%,100%{transform:scaleY(1)} 95%{transform:scaleY(.15)} }
+    @keyframes arm-l-wave { 0%,100%{transform:rotate(0deg)} 50%{transform:rotate(-30deg)} }
+    @keyframes arm-r-wave { 0%,100%{transform:rotate(0deg)} 50%{transform:rotate(30deg)} }
+    @keyframes rc-float   { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
+    @keyframes rc-talk    { 0%{width:16px} 50%{width:6px} 100%{width:16px} }
+    @keyframes room-active-glow {
+      0%,100%{box-shadow:0 0 0 rgba(0,212,255,0);border-color:rgba(0,212,255,.45)}
+      50%{box-shadow:0 0 18px rgba(0,212,255,.2);border-color:var(--accent)}
+    }
+    @keyframes scan-h {
+      0%{transform:translateX(-100%)} 100%{transform:translateX(200%)}
+    }
+    @keyframes ceo-border-pulse {
+      0%,100%{border-color:rgba(0,212,255,.5);box-shadow:0 0 0 rgba(0,212,255,0)}
+      50%{border-color:var(--accent);box-shadow:0 0 24px rgba(0,212,255,.15)}
+    }
+
+    /* — Worker Robot (28px wide) — */
+    .robot-w {
+      display: inline-flex; flex-direction: column;
+      align-items: center;
+      cursor: default; user-select: none;
+      position: relative;
+    }
+    .robot-w.rw-active  { animation: rw-bounce .55s ease infinite; }
+    .robot-w.rw-idle    { animation: rw-idle 2.4s ease infinite; }
+    .robot-w.rw-locked  { filter: grayscale(.9); opacity: .35; }
+    .robot-w.rw-working { animation: rw-bounce .35s ease infinite; }
+
+    .rw-ant {
+      width: 3px; height: 7px;
+      background: var(--accent);
+      position: relative; margin-bottom: -1px;
+    }
+    .rw-ant-tip {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 6px var(--accent);
+      position: absolute; top: -3px; left: -1.5px;
+      animation: pulse 1s infinite;
+    }
+    .robot-w.rw-locked .rw-ant-tip { background: var(--muted); box-shadow:none; animation:none; }
+
+    .rw-head {
+      width: 22px; height: 16px;
+      background: var(--surface2);
+      border: 1.5px solid var(--accent);
+      border-radius: 3px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .robot-w.rw-locked .rw-head { border-color: var(--muted); }
+
+    .rw-eyes { display: flex; gap: 5px; }
+    .rw-eye {
+      width: 5px; height: 4px;
+      background: var(--accent);
+      border-radius: 1px;
+      display: inline-block;
+      animation: eye-blink 3.5s ease infinite;
+    }
+    .rw-eye:nth-child(2) { animation-delay: .18s; }
+    .robot-w.rw-locked .rw-eye { background: var(--muted); animation: none; }
+    .robot-w.rw-working .rw-eye { background: var(--yellow); box-shadow: 0 0 4px var(--yellow); }
+
+    .rw-torso {
+      width: 26px; height: 18px;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 2px;
+      display: flex; align-items: center; justify-content: center;
+      position: relative; margin-top: 1px;
+    }
+    .rw-arm {
+      position: absolute;
+      width: 5px; height: 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 2px; top: 2px;
+    }
+    .rw-arm-l { left: -6px; transform-origin: top center; }
+    .rw-arm-r { right: -6px; transform-origin: top center; }
+    .robot-w.rw-working .rw-arm-l { animation: arm-l-wave .35s ease infinite; }
+    .robot-w.rw-working .rw-arm-r { animation: arm-r-wave .35s ease infinite; }
+    .robot-w.rw-active  .rw-arm-l { animation: arm-l-wave .55s ease infinite; }
+    .robot-w.rw-active  .rw-arm-r { animation: arm-r-wave .55s ease infinite; }
+
+    .rw-panel {
+      width: 12px; height: 10px;
+      background: var(--surface2); border-radius: 1px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .rw-light {
+      width: 4px; height: 4px; border-radius: 50%;
+      background: var(--accent);
+      animation: pulse .9s infinite;
+    }
+    .robot-w.rw-working .rw-light { background: var(--green); animation: pulse .3s infinite; }
+    .robot-w.rw-locked  .rw-light { background: var(--muted); animation: none; }
+
+    .rw-legs { display: flex; gap: 4px; margin-top: 2px; }
+    .rw-leg {
+      width: 8px; height: 11px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 0 0 3px 3px;
+      display: inline-block;
+    }
+
+    /* — CEO Robot (50px wide) — */
+    .robot-ceo {
+      display: inline-flex; flex-direction: column;
+      align-items: center; flex-shrink: 0;
+      animation: rc-float 3.5s ease infinite;
+      cursor: default;
+      filter: drop-shadow(0 0 8px rgba(0,212,255,.45));
+      transition: filter .4s;
+    }
+    .robot-ceo.ceo-running {
+      animation: rc-float 1.1s ease infinite;
+      filter: drop-shadow(0 0 14px rgba(0,212,255,.9));
+    }
+
+    .rc-ant {
+      width: 4px; height: 10px;
+      background: linear-gradient(to top, var(--accent2), var(--accent));
+      position: relative; margin-bottom: -1px;
+    }
+    .rc-ant-tip {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 12px var(--accent);
+      position: absolute; top: -5px; left: -3px;
+      animation: pulse .8s infinite;
+    }
+
+    .rc-head {
+      width: 38px; height: 28px;
+      background: var(--surface2);
+      border: 2px solid var(--accent);
+      border-radius: 4px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 4px;
+    }
+    .rc-visor { display: flex; gap: 7px; }
+    .rc-eye-l, .rc-eye-r {
+      width: 9px; height: 7px;
+      background: var(--accent); border-radius: 1px;
+      box-shadow: 0 0 6px var(--accent);
+      animation: eye-blink 4s ease infinite;
+    }
+    .rc-eye-r { animation-delay: .25s; }
+    .robot-ceo.ceo-running .rc-eye-l,
+    .robot-ceo.ceo-running .rc-eye-r {
+      background: var(--green); box-shadow: 0 0 10px var(--green);
+    }
+
+    .rc-mouth {
+      width: 16px; height: 4px;
+      background: var(--surface3); border-radius: 2px;
+      border: 1px solid var(--border);
+    }
+    .robot-ceo.ceo-running .rc-mouth {
+      background: var(--accent2);
+      box-shadow: 0 0 4px var(--accent2);
+      animation: rc-talk .4s ease infinite;
+    }
+
+    .rc-torso {
+      width: 46px; height: 34px;
+      background: var(--surface);
+      border: 2px solid var(--accent2);
+      border-radius: 4px;
+      display: flex; align-items: center; justify-content: center;
+      position: relative; margin-top: 2px;
+    }
+    .rc-arm {
+      position: absolute;
+      width: 9px; height: 24px;
+      background: var(--surface2);
+      border: 1.5px solid var(--border);
+      border-radius: 3px; top: 4px;
+    }
+    .rc-arm-l { left: -11px; transform-origin: top center; }
+    .rc-arm-r { right: -11px; transform-origin: top center; }
+    .robot-ceo.ceo-running .rc-arm-l { animation: arm-l-wave .7s ease infinite; }
+    .robot-ceo.ceo-running .rc-arm-r { animation: arm-r-wave .7s ease infinite; }
+
+    .rc-panel {
+      width: 24px; height: 22px;
+      background: var(--surface2); border-radius: 2px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 3px;
+      border: 1px solid var(--border);
+    }
+    .rc-panel-row { display: flex; gap: 3px; }
+    .rc-light { width: 6px; height: 6px; border-radius: 50%; }
+    .rc-l1 { background: var(--accent);  animation: pulse .7s infinite; }
+    .rc-l2 { background: var(--accent2); animation: pulse .9s infinite; animation-delay: .2s; }
+    .rc-l3 { background: var(--green);   animation: pulse 1.1s infinite; animation-delay: .4s; }
+    .rc-l4 { background: var(--pink);    animation: pulse 1.3s infinite; animation-delay: .6s; }
+
+    .rc-legs { display: flex; gap: 7px; margin-top: 2px; }
+    .rc-leg {
+      width: 14px; height: 18px;
+      background: var(--surface2);
+      border: 1.5px solid var(--border);
+      border-radius: 0 0 4px 4px;
+    }
+
+    /* — CEO Command Room — */
+    .ceo-command-room {
+      background: var(--surface);
+      border: 1px solid var(--accent);
+      border-radius: 8px;
+      padding: 14px 18px;
+      margin-bottom: 12px;
+      display: flex; align-items: center; gap: 18px;
+      position: relative; overflow: hidden;
+      animation: ceo-border-pulse 3s ease infinite;
+    }
+    .ceo-command-room::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(0,212,255,.04) 0%, transparent 55%);
+      pointer-events: none;
+    }
+    .ceo-scan-line {
+      position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      opacity: .35;
+      animation: scan-h 3.5s linear infinite;
+    }
+
+    .ceo-info { flex: 1; }
+    .ceo-title { font-size: 15px; font-weight: bold; color: var(--accent); letter-spacing: 3px; margin-bottom: 2px; text-shadow: 0 0 10px rgba(0,212,255,.4); }
+    .ceo-subtitle { font-size: 9px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+    .ceo-status-txt { font-size: 10px; color: var(--text); margin-top: 6px; min-height: 14px; }
+    .ceo-stats-row { display: flex; gap: 16px; margin-top: 8px; }
+    .ceo-stat { display: flex; flex-direction: column; gap: 1px; }
+    .ceo-stat-v { font-size: 18px; font-weight: bold; color: var(--text); }
+    .ceo-stat-l { font-size: 8px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+
+    /* — Room Grid — */
+    .game-rooms { display: none; margin-top: 4px; }
+    .game-rooms.visible { display: block; }
+
+    .room-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(205px, 1fr));
+      gap: 10px;
+    }
+    .room-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px 28px;
+      position: relative; overflow: hidden;
+      min-height: 130px;
+    }
+    .room-card.room-active { animation: room-active-glow 2.5s ease infinite; }
+    .room-card.room-locked { opacity: .45; }
+
+    .room-header-row {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .room-title-txt { font-size: 11px; font-weight: bold; display: flex; align-items: center; gap: 4px; }
+    .room-task-info { font-size: 9px; color: var(--muted); }
+    .room-rev-badge {
+      position: absolute; top: 8px; right: 8px;
+      font-size: 8px; padding: 2px 5px; border-radius: 8px;
+      background: rgba(16,185,129,.1); color: var(--green);
+      border: 1px solid rgba(16,185,129,.2);
+    }
+    .room-floor-line {
+      position: absolute; bottom: 20px; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(0,212,255,.14), transparent);
+    }
+    .room-ground {
+      position: absolute; bottom: 0; left: 0; right: 0; height: 20px;
+      background: linear-gradient(180deg, transparent, rgba(0,212,255,.04));
+      border-top: 1px solid rgba(0,212,255,.07);
+    }
+    .room-agents {
+      display: flex; gap: 10px; align-items: flex-end;
+      min-height: 72px; padding-bottom: 2px; flex-wrap: wrap;
+    }
+    .room-no-agents {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; min-height: 72px;
+      color: var(--muted); font-size: 9px;
+    }
+
+    /* — Game view toggle button — */
+    .btn-game-toggle {
+      background: var(--surface3); border: 1px solid var(--accent2);
+      color: var(--accent2); padding: 4px 10px; border-radius: 4px;
+      cursor: pointer; font-family: var(--font); font-size: 10px;
+      letter-spacing: 1px; transition: background .15s, color .15s, border-color .15s;
+    }
+    .btn-game-toggle.active { background: var(--accent2); color: #fff; border-color: var(--accent2); }
+    .btn-game-toggle:hover:not(.active) { border-color: var(--accent); color: var(--accent); }
+
     /* ── Responsive tweak ── */
     @media (max-width: 900px) {
       .main { grid-template-columns: 1fr; }
@@ -506,6 +815,7 @@
       <span id="sys-label" style="color:var(--muted)">loading</span>
     </div>
     <span id="last-update">--:--</span>
+    <button class="btn-game-toggle" id="game-toggle-btn" onclick="toggleGameView()">🎮 GAME VIEW</button>
     <button class="btn-refresh" onclick="refreshAll()">↻ REFRESH</button>
   </div>
 </header>
@@ -632,6 +942,73 @@
       </div>
       <div class="ws-grid" id="ws-grid">
         <!-- filled by JS -->
+      </div>
+    </div>
+
+    <!-- Game View — Robot Rooms -->
+    <div class="game-rooms" id="game-rooms">
+
+      <!-- CEO Command Room -->
+      <div class="ceo-command-room">
+        <div class="robot-ceo" id="ceo-robot">
+          <div class="rc-ant"><div class="rc-ant-tip"></div></div>
+          <div class="rc-head">
+            <div class="rc-visor">
+              <div class="rc-eye-l"></div>
+              <div class="rc-eye-r"></div>
+            </div>
+            <div class="rc-mouth"></div>
+          </div>
+          <div class="rc-torso">
+            <div class="rc-arm rc-arm-l"></div>
+            <div class="rc-panel">
+              <div class="rc-panel-row">
+                <div class="rc-light rc-l1"></div>
+                <div class="rc-light rc-l2"></div>
+              </div>
+              <div class="rc-panel-row">
+                <div class="rc-light rc-l3"></div>
+                <div class="rc-light rc-l4"></div>
+              </div>
+            </div>
+            <div class="rc-arm rc-arm-r"></div>
+          </div>
+          <div class="rc-legs">
+            <div class="rc-leg"></div>
+            <div class="rc-leg"></div>
+          </div>
+        </div>
+        <div class="ceo-info">
+          <div class="ceo-title">⚡ CEO GIR</div>
+          <div class="ceo-subtitle">Chief Executive Officer · Autonomous Revenue AI</div>
+          <div class="ceo-status-txt" id="ceo-status-txt">Monitoring all workstreams…</div>
+          <div class="ceo-stats-row">
+            <div class="ceo-stat">
+              <div class="ceo-stat-v txt-green" id="ceo-daily">$0.00</div>
+              <div class="ceo-stat-l">today</div>
+            </div>
+            <div class="ceo-stat">
+              <div class="ceo-stat-v txt-accent" id="ceo-queued">0</div>
+              <div class="ceo-stat-l">queued</div>
+            </div>
+            <div class="ceo-stat">
+              <div class="ceo-stat-v txt-yellow" id="ceo-agent-count">0</div>
+              <div class="ceo-stat-l">rooms</div>
+            </div>
+            <div class="ceo-stat">
+              <div class="ceo-stat-v" id="ceo-cycles">0</div>
+              <div class="ceo-stat-l">cycles</div>
+            </div>
+          </div>
+        </div>
+        <div class="ceo-scan-line"></div>
+      </div>
+
+      <!-- Workstream Rooms -->
+      <div class="room-grid" id="room-grid">
+        <div style="color:var(--muted);font-size:11px;padding:20px;grid-column:1/-1;text-align:center">
+          Toggle game view — rooms render when workstreams load.
+        </div>
       </div>
     </div>
 
@@ -1138,6 +1515,7 @@
       const ws = await api('/api/workstreams');
       renderWsSidebar(ws);
       renderWsGrid(ws);
+      renderGameView(ws);
     } catch(e) {}
   }
 
@@ -1333,8 +1711,23 @@
   async function loadAutopilotStatus() {
     try {
       const data = await api('/api/autopilot/status');
-      document.getElementById('pilot-status').textContent = data.is_running ? 'running' : 'idle';
+      const isRunning = data.is_running;
+      document.getElementById('pilot-status').textContent = isRunning ? 'running' : 'idle';
       document.getElementById('pilot-cycles').textContent = data.cycles_run + ' cycles';
+      // Animate CEO robot
+      const ceoRobot = document.getElementById('ceo-robot');
+      const ceoTxt   = document.getElementById('ceo-status-txt');
+      const ceoCycles = document.getElementById('ceo-cycles');
+      if (ceoRobot) {
+        if (isRunning) {
+          ceoRobot.classList.add('ceo-running');
+          if (ceoTxt) ceoTxt.textContent = '⚡ Executing pipelines across all workstreams…';
+        } else {
+          ceoRobot.classList.remove('ceo-running');
+          if (ceoTxt) ceoTxt.textContent = `Monitoring all workstreams — ${data.cycles_run} cycle${data.cycles_run !== 1 ? 's' : ''} complete`;
+        }
+      }
+      if (ceoCycles) ceoCycles.textContent = data.cycles_run || 0;
     } catch(e) {}
   }
 
@@ -1391,6 +1784,88 @@
       await loadAll();
     } catch(e) { toast('Autopilot error: ' + e.message, 'err'); }
     finally { document.getElementById('pilot-status').textContent = 'idle'; }
+  }
+
+  // ── Game View ──
+  let _gameViewActive = false;
+
+  function toggleGameView() {
+    _gameViewActive = !_gameViewActive;
+    const rooms = document.getElementById('game-rooms');
+    const btn   = document.getElementById('game-toggle-btn');
+    if (_gameViewActive) {
+      rooms.classList.add('visible');
+      btn.classList.add('active');
+      btn.textContent = '📊 GRID VIEW';
+      // Immediately render if we already have data
+      if (_lastWsList && _lastWsList.length) renderGameView(_lastWsList);
+    } else {
+      rooms.classList.remove('visible');
+      btn.classList.remove('active');
+      btn.textContent = '🎮 GAME VIEW';
+    }
+  }
+
+  function _robotWorkerHTML(state, color) {
+    const eyeStyle = state === 'working' ? 'style="background:var(--yellow);box-shadow:0 0 4px var(--yellow)"'
+                   : state === 'locked'  ? 'style="background:var(--muted)"' : '';
+    const lightStyle = state === 'working' ? 'style="background:var(--green);animation:pulse .3s infinite"'
+                     : state === 'locked'  ? 'style="background:var(--muted);animation:none"' : '';
+    return `<div class="robot-w rw-${state}" title="${state}">
+      <div class="rw-ant"><div class="rw-ant-tip"></div></div>
+      <div class="rw-head"><div class="rw-eyes"><span class="rw-eye" ${eyeStyle}></span><span class="rw-eye" ${eyeStyle}></span></div></div>
+      <div class="rw-torso">
+        <div class="rw-arm rw-arm-l"></div>
+        <div class="rw-panel"><div class="rw-light" ${lightStyle}></div></div>
+        <div class="rw-arm rw-arm-r"></div>
+      </div>
+      <div class="rw-legs"><span class="rw-leg"></span><span class="rw-leg"></span></div>
+    </div>`;
+  }
+
+  let _lastWsList = [];
+
+  function renderGameView(wsList) {
+    _lastWsList = wsList;
+    if (!_gameViewActive || !wsList) return;
+    const grid = document.getElementById('room-grid');
+    if (!grid) return;
+
+    // Update CEO stats from existing header elements
+    const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    setEl('ceo-daily',  document.getElementById('h-daily')?.textContent  || '$0.00');
+    setEl('ceo-queued', document.getElementById('h-tasks')?.textContent  || '0');
+    setEl('ceo-agent-count', wsList.length);
+
+    grid.innerHTML = wsList.map(ws => {
+      const counts  = ws.task_counts || {};
+      const active  = (counts.in_progress || 0) + (counts.assigned || 0);
+      const total   = ws.total_tasks || 0;
+      const isActive = active > 0;
+      const isLocked = !ws.enabled;
+
+      // Robots: always at least 1, scale up with task load
+      const numRobots = Math.max(1, Math.min(5, Math.ceil(total / 4) + (active > 0 ? 1 : 0)));
+      let agentsHTML = '';
+      for (let i = 0; i < numRobots; i++) {
+        const state = isLocked ? 'locked' : i < active ? 'working' : total > 0 ? 'active' : 'idle';
+        agentsHTML += _robotWorkerHTML(state);
+      }
+
+      const revBadge = ws.revenue_target_daily > 0
+        ? `<div class="room-rev-badge">$${ws.revenue_target_daily}/d</div>` : '';
+
+      return `<div class="room-card ${isActive ? 'room-active' : ''} ${isLocked ? 'room-locked' : ''}">
+        ${revBadge}
+        <div class="room-header-row">
+          <div class="room-title-txt">${ws.icon} ${ws.name}</div>
+          <div class="room-task-info">${total}t · ${active}▶</div>
+        </div>
+        <div class="room-agents">${agentsHTML}</div>
+        <div class="room-floor-line"></div>
+        <div class="room-ground"></div>
+      </div>`;
+    }).join('');
   }
 
   // ── Init ──
