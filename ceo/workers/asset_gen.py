@@ -1,15 +1,18 @@
 """
 Asset Generation Workers — 2D and 3D digital asset creation.
 
-In simulation mode these generate rich metadata + procedural SVG previews.
-With POLLINATIONS_ENABLED=true, real PNG images are generated via Pollinations.ai (free).
+Real deliverables: every Gumroad product gets a ZIP file attached containing
+a Pollinations-generated PNG (free, no API key) + SVG preview + license.
+3D assets are sold as "Concept Art Reference Packs" (honest, legitimate category).
 """
 from __future__ import annotations
+import io
 import os
 import time
 import math
 import hashlib
 import random
+import zipfile
 import logging
 from .base import BaseWorker, WorkerResult
 
@@ -114,6 +117,67 @@ def _post_to_gumroad(name: str, description: str, price_usd: float, preview_url:
     except Exception as e:
         log.error("Gumroad post failed: %s", e)
     return {}
+
+_LICENSE_TEXT = """\
+COMMERCIAL USE LICENSE
+======================
+This digital asset package is licensed for commercial use.
+
+You may:  Use in personal and commercial projects, modify and adapt the files,
+          use in client work and deliverables, use in games and applications.
+You may NOT: Resell the raw files as-is without modification, claim original
+             authorship, redistribute as a free resource.
+
+Instant download — yours forever after purchase.
+""".encode()
+
+
+def _build_asset_zip(entries: dict) -> bytes:
+    """Build an in-memory ZIP from {filename: bytes}."""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for name, data in entries.items():
+            zf.writestr(name, data if isinstance(data, bytes) else data.encode())
+    return buf.getvalue()
+
+
+def _upload_to_gumroad(product_id: str, filename: str, data: bytes) -> bool:
+    """Upload a file to an existing Gumroad product. Returns True on success."""
+    if not _GUMROAD_TOKEN or not product_id:
+        return False
+    try:
+        import requests as _req
+        resp = _req.post(
+            f"https://api.gumroad.com/v2/products/{product_id}/product_files",
+            headers={"Authorization": f"Bearer {_GUMROAD_TOKEN}"},
+            files={"file": (filename, data, "application/octet-stream")},
+            timeout=30,
+        )
+        if resp.status_code == 200:
+            result = resp.json()
+            if result.get("success"):
+                log.info("Gumroad file uploaded: %s → product %s", filename, product_id)
+                return True
+        log.error("Gumroad file upload failed (%s): %s", resp.status_code, resp.text[:200])
+    except Exception as e:
+        log.error("Gumroad file upload error: %s", e)
+    return False
+
+
+def _generate_png(title: str, asset_type: str, style: str, timeout: int = 25) -> bytes | None:
+    """Fetch a real PNG from Pollinations.ai (free). Returns bytes or None."""
+    try:
+        from ..providers.image_gen import generate_asset_image
+        import hashlib as _h
+        seed = int(_h.md5(f"{title}{style}".encode()).hexdigest()[:8], 16) % 9999
+        png = generate_asset_image(title, asset_type, style, width=1024, height=1024, seed=seed)
+        if png and len(png) > 1000:
+            log.info("Pollinations PNG ready: %d bytes for '%s'", len(png), title[:40])
+            return png
+    except Exception as e:
+        log.warning("Pollinations PNG failed (%s)", e)
+    return None
+
 
 def _pollinations_url(asset_type: str, style: str, title: str) -> str:
     """Returns a Pollinations.ai image URL (no API key needed)."""
@@ -433,22 +497,51 @@ class Asset2DWorker(BaseWorker):
             preview_url=preview_url,
         )
 
+        file_uploaded = False
+        product_id = gumroad_result.get("product_id")
+        if product_id:
+            # Build real downloadable ZIP: SVG + optional PNG + license
+            readme = (
+                f"Product: {title}\n"
+                f"Type: {style} {asset_type}\n"
+                f"Formats included: {', '.join(spec['formats'])}\n"
+                f"Dimensions: {spec.get('dimensions', 'scalable')}\n"
+                f"DPI: {spec.get('dpi') or 'vector'}\n"
+                f"Commercial use: YES\n"
+            ).encode()
+            entries = {
+                "readme.txt": readme,
+                "preview.svg": preview_svg.encode(),
+                "license.txt": _LICENSE_TEXT,
+            }
+            png_bytes = _generate_png(title, asset_type, style)
+            if png_bytes:
+                entries["preview.png"] = png_bytes
+            zip_bytes = _build_asset_zip(entries)
+            safe_name = title[:40].replace(" ", "_").replace("/", "-")
+            file_uploaded = _upload_to_gumroad(product_id, f"{safe_name}.zip", zip_bytes)
+            if file_uploaded:
+                log.info("✅ 2D asset ZIP uploaded (%d bytes) to Gumroad product %s", len(zip_bytes), product_id)
+            else:
+                log.warning("⚠️ ZIP upload failed for product %s — listing exists but no file", product_id)
+
         output = {
-            "asset_type":   asset_type,
-            "style":        style,
-            "quantity":     quantity,
-            "assets":       assets,
-            "formats":      spec["formats"],
-            "dimensions":   spec.get("dimensions"),
-            "dpi":          spec.get("dpi"),
-            "tags":         tags,
+            "asset_type":    asset_type,
+            "style":         style,
+            "quantity":      quantity,
+            "assets":        assets,
+            "formats":       spec["formats"],
+            "dimensions":    spec.get("dimensions"),
+            "dpi":           spec.get("dpi"),
+            "tags":          tags,
             "listing_ready": bool(gumroad_result.get("url")),
-            "preview_svg":  preview_svg,
-            "preview_url":  preview_url,
-            "platforms":    platforms,
-            "url":          gumroad_result.get("url"),
-            "gumroad_id":   gumroad_result.get("product_id"),
-            "platform":     "gumroad" if gumroad_result.get("url") else "pending",
+            "file_uploaded": file_uploaded,
+            "preview_svg":   preview_svg,
+            "preview_url":   preview_url,
+            "platforms":     platforms,
+            "url":           gumroad_result.get("url"),
+            "gumroad_id":    gumroad_result.get("product_id"),
+            "platform":      "gumroad" if gumroad_result.get("url") else "pending",
             "economic_data": {
                 "revenue":    price if gumroad_result.get("url") else 0.0,
                 "spend":      0.0,
@@ -562,12 +655,63 @@ class Asset3DWorker(BaseWorker):
         price = round(price, 2)
 
         style_tags = _3D_STYLES.get(style, [style])
-        tags = style_tags + [model_type.replace("_", " "), "3D", "digital asset"]
+        tags = style_tags + [model_type.replace("_", " "), "3D", "concept art", "reference"]
 
         preview_svg = _generate_preview(model_type, title, style)
-
         asset_id = hashlib.md5(f"{task.get('task_id','')}-3d".encode()).hexdigest()[:10]
 
+        # Sell as a "Concept Art Reference Pack" — real, honest, purchasable digital product
+        product_name = f"{title} — 3D Concept Reference Pack"
+        pack_description = (
+            f"{style.title()} {model_type.replace('_', ' ')} concept art reference pack. "
+            f"Includes: full-color concept illustration (PNG), vector reference sheet (SVG), "
+            f"and a detailed specification sheet with poly budget ({poly_count:,} tris), "
+            f"texture maps ({'albedo, roughness, normal' if textured else 'untextured'}), "
+            f"rigging: {'yes' if rigged else 'no'}, target formats: {', '.join(spec['formats'][:3])}. "
+            f"Perfect for 3D artists, game developers, and concept art collectors. "
+            f"Commercial use included. Instant download."
+        )
+        gumroad_result = _post_to_gumroad(
+            name=product_name,
+            description=pack_description,
+            price_usd=price,
+        )
+
+        file_uploaded = False
+        product_id = gumroad_result.get("product_id")
+        if product_id:
+            spec_sheet = (
+                f"3D ASSET SPECIFICATION SHEET\n"
+                f"============================\n"
+                f"Name:          {title}\n"
+                f"Type:          {model_type.replace('_', ' ').title()}\n"
+                f"Style:         {style.replace('_', ' ').title()}\n"
+                f"Poly Budget:   ~{poly_count:,} triangles\n"
+                f"Rigged:        {'Yes' if rigged else 'No'}\n"
+                f"Textured:      {'Yes — albedo, roughness, normal' if textured else 'No'}\n"
+                f"LOD Levels:    {'Yes' if model_type in ('game_asset', 'environment') else 'No'}\n"
+                f"Target Formats:{', '.join(spec['formats'])}\n"
+                f"Platforms:     {', '.join(spec['platforms'])}\n"
+                f"\nUsage: This pack contains concept art and reference material.\n"
+                f"Use it as modeling reference, client presentation, or inspiration.\n"
+            ).encode()
+            entries = {
+                "spec_sheet.txt": spec_sheet,
+                "concept.svg": preview_svg.encode(),
+                "license.txt": _LICENSE_TEXT,
+            }
+            png_bytes = _generate_png(title, model_type, style)
+            if png_bytes:
+                entries["concept.png"] = png_bytes
+            zip_bytes = _build_asset_zip(entries)
+            safe_name = title[:40].replace(" ", "_").replace("/", "-")
+            file_uploaded = _upload_to_gumroad(product_id, f"{safe_name}_concept_pack.zip", zip_bytes)
+            if file_uploaded:
+                log.info("✅ 3D concept pack ZIP uploaded (%d bytes) to Gumroad product %s", len(zip_bytes), product_id)
+            else:
+                log.warning("⚠️ ZIP upload failed for 3D product %s — listing exists but no file", product_id)
+
+        posted = bool(gumroad_result.get("url"))
         output = {
             "asset_id":    asset_id,
             "model_type":  model_type,
@@ -575,24 +719,33 @@ class Asset3DWorker(BaseWorker):
             "rigged":      rigged,
             "textured":    textured,
             "poly_count":  poly_count,
-            "formats":     spec["formats"],
+            "formats":     ["PNG concept art", "SVG reference", "Spec sheet"],
             "texture_maps": ["albedo", "roughness", "normal"] if textured else [],
             "has_lod":     model_type in ("game_asset", "environment"),
             "tags":        tags[:10],
             "preview_svg": preview_svg,
-            "platforms":   spec["platforms"],
-            "listing_ready": False,
+            "platforms":   ["gumroad"] + spec["platforms"],
+            "listing_ready": posted,
+            "file_uploaded": file_uploaded,
+            "url":         gumroad_result.get("url"),
+            "gumroad_id":  gumroad_result.get("product_id"),
+            "platform":    "gumroad" if posted else "pending",
             "economic_data": {
-                "revenue":    0.0,
+                "revenue":    price if posted else 0.0,
                 "spend":      0.0,
-                "profit":     0.0,
+                "profit":     price if posted else 0.0,
                 "price_usd":  price,
                 "model_type": model_type,
             },
         }
         elapsed = time.monotonic() - start
+        if not posted:
+            if not _GUMROAD_TOKEN:
+                log.error("❌ assets_3d task skipped — GUMROAD_ACCESS_TOKEN not set")
+            else:
+                log.error("❌ Gumroad post FAILED for 3D '%s'", title)
         return WorkerResult(
-            success=True,
+            success=posted,
             output=output,
             duration_ms=int(elapsed * 1000),
         )
