@@ -164,13 +164,14 @@ def _upload_to_gumroad(product_id: str, filename: str, data: bytes) -> bool:
     return False
 
 
-def _generate_png(title: str, asset_type: str, style: str, timeout: int = 25) -> bytes | None:
+def _generate_png(title: str, asset_type: str, style: str, timeout: int = 25, extra_prompt: str = "") -> bytes | None:
     """Fetch a real PNG from Pollinations.ai (free). Returns bytes or None."""
     try:
         from ..providers.image_gen import generate_asset_image
         import hashlib as _h
-        seed = int(_h.md5(f"{title}{style}".encode()).hexdigest()[:8], 16) % 9999
-        png = generate_asset_image(title, asset_type, style, width=1024, height=1024, seed=seed)
+        effective_title = title + extra_prompt if extra_prompt else title
+        seed = int(_h.md5(f"{effective_title}{style}".encode()).hexdigest()[:8], 16) % 9999
+        png = generate_asset_image(effective_title, asset_type, style, width=1024, height=1024, seed=seed)
         if png and len(png) > 1000:
             log.info("Pollinations PNG ready: %d bytes for '%s'", len(png), title[:40])
             return png
@@ -486,21 +487,57 @@ class Asset2DWorker(BaseWorker):
                 "preview_url": preview_url if i == 0 else None,
             })
 
+        # ── QA-gated PNG generation ──────────────────────────────────────────────
+        # Generate the PNG first, run QA, retry up to 2x before deciding to post.
+        from .qa_agent import score_asset_image, improved_prompt_hint
+
+        _QA_MAX_RETRIES = 2
+        png_bytes    = None
+        qa_result    = None
+        qa_passed    = True   # default pass if QA is unavailable
+        extra_prompt = ""
+
+        for attempt in range(_QA_MAX_RETRIES + 1):
+            png_bytes = _generate_png(title, asset_type, style, extra_prompt=extra_prompt)
+            if not png_bytes:
+                log.warning("PNG generation failed on attempt %d — skipping QA", attempt + 1)
+                break
+            qa_result = score_asset_image(png_bytes, title, asset_type, style)
+            if qa_result is None:
+                # QA unavailable — treat as pass
+                log.info("QA Agent unavailable — proceeding without quality gate")
+                qa_passed = True
+                break
+            qa_passed = qa_result.passed
+            log.info("QA attempt %d: %s", attempt + 1, qa_result)
+            if qa_passed:
+                break
+            if attempt < _QA_MAX_RETRIES:
+                extra_prompt = improved_prompt_hint(asset_type, style, qa_result.reason)
+                log.warning("QA FAIL (score=%.1f) — retrying with improved prompt", qa_result.score)
+            else:
+                log.warning("QA FAIL after %d attempts (final score=%.1f) — skipping Gumroad post",
+                            _QA_MAX_RETRIES + 1, qa_result.score)
+
         # Generate AI product description (free, Pollinations text API)
         ai_desc = _ai_description(title, asset_type, style, spec["formats"], price)
 
-        # Try to post to Gumroad if token is set
-        gumroad_result = _post_to_gumroad(
-            name=title,
-            description=ai_desc,
-            price_usd=price,
-            preview_url=preview_url,
-        )
+        # Only post to Gumroad if QA passed (or QA was unavailable)
+        gumroad_result: dict = {}
+        if qa_passed:
+            gumroad_result = _post_to_gumroad(
+                name=title,
+                description=ai_desc,
+                price_usd=price,
+                preview_url=preview_url,
+            )
+        else:
+            log.warning("⛔ Asset '%s' blocked by QA — not posted to Gumroad", title[:60])
 
         file_uploaded = False
         product_id = gumroad_result.get("product_id")
         if product_id:
-            # Build real downloadable ZIP: SVG + optional PNG + license
+            # Build real downloadable ZIP: SVG + QA-approved PNG + license
             readme = (
                 f"Product: {title}\n"
                 f"Type: {style} {asset_type}\n"
@@ -514,7 +551,6 @@ class Asset2DWorker(BaseWorker):
                 "preview.svg": preview_svg.encode(),
                 "license.txt": _LICENSE_TEXT,
             }
-            png_bytes = _generate_png(title, asset_type, style)
             if png_bytes:
                 entries["preview.png"] = png_bytes
             zip_bytes = _build_asset_zip(entries)
@@ -542,6 +578,11 @@ class Asset2DWorker(BaseWorker):
             "url":           gumroad_result.get("url"),
             "gumroad_id":    gumroad_result.get("product_id"),
             "platform":      "gumroad" if gumroad_result.get("url") else "pending",
+            "qa": {
+                "passed": qa_passed,
+                "score":  qa_result.score if qa_result else None,
+                "reason": qa_result.reason if qa_result else "QA unavailable",
+            },
             "economic_data": {
                 "revenue":    price if gumroad_result.get("url") else 0.0,
                 "spend":      0.0,
@@ -553,7 +594,9 @@ class Asset2DWorker(BaseWorker):
         elapsed = time.monotonic() - start
         posted = bool(gumroad_result.get("url"))
         if not posted:
-            if not _GUMROAD_TOKEN:
+            if not qa_passed:
+                log.warning("Asset '%s' did not meet QA threshold — blocked from Gumroad", title[:60])
+            elif not _GUMROAD_TOKEN:
                 log.warning("GUMROAD_ACCESS_TOKEN not set — asset generated locally, skipping Gumroad post")
             else:
                 log.warning("Gumroad post failed for '%s' — asset generated, listing pending", title)

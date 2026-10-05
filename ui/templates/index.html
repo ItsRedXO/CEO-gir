@@ -2163,6 +2163,7 @@
     research:  { icon: '🔍', label: 'Research',  x: 50, y: 9  },
     trends:    { icon: '📈', label: 'Trends',    x: 75, y: 17 },
     assets_2d: { icon: '🎨', label: '2D Assets', x: 88, y: 44 },
+    qa:        { icon: '🔬', label: 'QA Lab',    x: 72, y: 55, static: true },
     gumroad:   { icon: '🛒', label: 'Gumroad',   x: 77, y: 75 },
     youtube:   { icon: '▶️', label: 'YouTube',   x: 50, y: 86 },
     pinterest: { icon: '📌', label: 'Pinterest', x: 23, y: 75 },
@@ -2353,6 +2354,9 @@
 
       _prevFail[wsId] = failed;
     }
+
+    // QA agent is static (no workstream) — ensure it always has an agent token
+    if (!_agents['qa']) _getAgent('qa');
   }
 
   // SSE quick-dispatch hook — fires agents immediately when log events mention a workstream
@@ -2361,7 +2365,22 @@
     const msg  = (parsed.msg  || '').toLowerCase();
     const name = (parsed.name || '').toLowerCase();
     const lvl  = parsed.level || '';
+
+    // QA agent — driven by qa_agent log messages
+    if (name.includes('qa') || msg.includes('qa agent') || msg.includes('qa attempt') || msg.includes('qa fail') || msg.includes('qa pass')) {
+      const qaState = _agents['qa']?.state || 'hub';
+      if (lvl === 'ERROR' || msg.includes('qa fail') || msg.includes('⛔') || msg.includes('blocked by qa')) {
+        _stuckAgent('qa');
+      } else if (msg.includes('qa attempt') || msg.includes('score_asset') || msg.includes('quality')) {
+        if (qaState === 'hub') _dispatchAgent('qa');
+      } else if (msg.includes('qa pass') || msg.includes('✅') && msg.includes('qa')) {
+        _recallAgent('qa');
+      }
+      return;
+    }
+
     for (const wsId of Object.keys(_OFFICES)) {
+      if (wsId === 'qa') continue; // handled above
       const slug = wsId.replace('_', '');
       if (!name.includes(slug) && !msg.includes(wsId.replace('_', ' ')) && !msg.includes(slug)) continue;
       if (lvl === 'ERROR' || lvl === 'CRITICAL') {
