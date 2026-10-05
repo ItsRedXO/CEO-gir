@@ -54,9 +54,53 @@ def main():
         print(f"Blocked:          {ctx['blocked_count']}")
         print(f"Task counts:      {metrics['task_counts']}")
 
+    elif mode == "autopilot":
+        from ceo.db import init_db
+        from ceo.agents.auto_pilot import get_auto_pilot, cycle_report_to_dict
+        import json
+
+        cycles = int(os.environ.get("CEO_CYCLES", "20"))
+        delay  = float(os.environ.get("CEO_CYCLE_DELAY", "1.0"))
+        db_path = os.environ.get("CEO_GIR_DB", "ceo_gir.db")
+
+        conn = init_db(db_path)
+        conn.close()
+
+        pilot = get_auto_pilot(db_path)
+        print(f"CEO GIR autopilot starting — {cycles} cycles, {delay}s between each")
+        print("Seeding profit pipelines…")
+        seed_result = pilot.seed()
+        print(f"  Seeded {seed_result['seeded']} tasks across all workstreams")
+
+        def on_cycle(report):
+            br = report.brain_result
+            print(
+                f"  Cycle {report.cycle_number:3d} | "
+                f"created={br.get('tasks_created', 0):3d} "
+                f"dispatched={report.tasks_dispatched:3d} "
+                f"completed={report.tasks_completed:3d} "
+                f"failed={report.tasks_failed:2d} | "
+                f"daily=${report.daily_revenue:.2f}"
+                + (f" | ERRORS: {report.errors}" if report.errors else "")
+            )
+
+        pilot.run_continuous(cycles=cycles, delay_seconds=delay, on_cycle=on_cycle)
+        print("Autopilot complete.")
+
+    elif mode == "brain":
+        from ceo.db import init_db
+        from ceo.agents.ceo_brain import get_brain
+        import json
+
+        db_path = os.environ.get("CEO_GIR_DB", "ceo_gir.db")
+        conn = init_db(db_path)
+        result = get_brain().run_cycle(conn)
+        conn.close()
+        print(json.dumps(result, indent=2))
+
     else:
         print(f"Unknown mode: {mode}")
-        print("Usage: python main.py [ui|seed|status]")
+        print("Usage: python main.py [ui|seed|status|autopilot|brain]")
         sys.exit(1)
 
 

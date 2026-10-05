@@ -8,6 +8,9 @@ from ..workers.listing import EtsyListingWorker, FiverrGigWorker
 from ..workers.asset import DigitalAssetWorker, ContentAssetWorker
 from ..workers.marketing import AffiliateWorker, SEOWorker, SocialMediaWorker
 from ..workers.analytics import PerformanceAnalyticsWorker, RevenueAnalyticsWorker
+from ..workers.trend import TrendResearchWorker, NicheAnalysisWorker, ProductResearchWorker
+from ..workers.delivery import ServiceDeliveryWorker, SalesTrackerWorker, PricingOptimizerWorker
+from ..workers.email import ListBuildingWorker, EmailCampaignWorker
 
 
 @dataclass
@@ -116,6 +119,43 @@ WORKSTREAM_REGISTRY: dict[str, WorkstreamConfig] = {
         capabilities=["seo", "keyword_research", "content_optimization"],
         revenue_target_daily=8.0,
         icon="📈",
+    ),
+    "trends": WorkstreamConfig(
+        workstream_id="trends",
+        name="Trends",
+        description="Niche and market trend research",
+        enabled=True,
+        worker_class=TrendResearchWorker,
+        capabilities=["trend_research", "niche_discovery", "market_research"],
+        icon="🔥",
+    ),
+    "delivery": WorkstreamConfig(
+        workstream_id="delivery",
+        name="Delivery",
+        description="Order fulfillment and sales tracking",
+        enabled=True,
+        worker_class=ServiceDeliveryWorker,
+        capabilities=["service_delivery", "order_fulfillment", "sales_tracking", "listing_performance"],
+        icon="📦",
+    ),
+    "email": WorkstreamConfig(
+        workstream_id="email",
+        name="Email",
+        description="Email marketing and list building",
+        enabled=True,
+        worker_class=EmailCampaignWorker,
+        capabilities=["email_campaign", "email_marketing", "list_building", "lead_generation"],
+        revenue_target_daily=5.0,
+        icon="📧",
+    ),
+    "pricing": WorkstreamConfig(
+        workstream_id="pricing",
+        name="Pricing",
+        description="Price optimization and A/B testing",
+        enabled=True,
+        worker_class=PricingOptimizerWorker,
+        capabilities=["pricing", "ab_testing", "price_optimization"],
+        icon="💲",
     ),
 }
 

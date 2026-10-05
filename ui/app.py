@@ -25,6 +25,8 @@ from ceo.replanning import get_ceo_decision_context, get_next_queued_tasks
 from ceo.health import run_health_check, health_to_dict
 from ceo.dispatcher import get_dispatcher
 from ceo.workstreams.registry import get_workstream_summary
+from ceo.agents.ceo_brain import get_brain
+from ceo.agents.auto_pilot import get_auto_pilot, cycle_report_to_dict
 
 DB_PATH = os.environ.get("CEO_GIR_DB", "ceo_gir.db")
 POLICY = SafetyPolicy(
@@ -259,6 +261,86 @@ def api_run_task(task_id):
         return jsonify({"task_id": task_id, "status": task["status"], "message": "no action taken"})
     except Exception as e:
         return jsonify({"error": str(e)}), 400
+    finally:
+        conn.close()
+
+
+@app.route("/api/autopilot/cycle", methods=["POST"])
+def api_autopilot_cycle():
+    """Run one full CEO cycle: brain → assign → dispatch → report."""
+    pilot = get_auto_pilot(DB_PATH)
+    report = pilot.run_cycle()
+    return jsonify(cycle_report_to_dict(report))
+
+
+@app.route("/api/autopilot/seed", methods=["POST"])
+def api_autopilot_seed():
+    """Seed all profit pipelines via the CEO Brain."""
+    pilot = get_auto_pilot(DB_PATH)
+    result = pilot.seed()
+    return jsonify(result)
+
+
+@app.route("/api/autopilot/run", methods=["POST"])
+def api_autopilot_run():
+    """Run N cycles (default 3). Body: {cycles: int}"""
+    data = request.get_json(force=True) or {}
+    n = int(data.get("cycles", 3))
+    n = min(n, 10)  # cap at 10 per HTTP request
+    pilot = get_auto_pilot(DB_PATH)
+    reports = pilot.run_continuous(cycles=n, delay_seconds=0.1)
+    return jsonify({
+        "cycles_run": len(reports),
+        "reports": [cycle_report_to_dict(r) for r in reports],
+        "summary": {
+            "total_tasks_created": sum(r.brain_result.get("tasks_created", 0) for r in reports),
+            "total_dispatched": sum(r.tasks_dispatched for r in reports),
+            "total_completed": sum(r.tasks_completed for r in reports),
+            "total_failed": sum(r.tasks_failed for r in reports),
+            "daily_revenue": reports[-1].daily_revenue if reports else 0.0,
+        },
+    })
+
+
+@app.route("/api/autopilot/status")
+def api_autopilot_status():
+    pilot = get_auto_pilot(DB_PATH)
+    conn = get_db()
+    try:
+        from ceo.db import get_total_metrics
+        metrics = get_total_metrics(conn)
+        return jsonify({
+            "cycles_run": pilot.cycle_count,
+            "is_running": pilot._running,
+            "daily_revenue": get_daily_revenue(conn),
+            "total_revenue": metrics["total_revenue"],
+            "task_counts": metrics["task_counts"],
+        })
+    finally:
+        conn.close()
+
+
+@app.route("/api/revenue/record", methods=["POST"])
+def api_record_revenue():
+    """Manually record revenue (for when real money comes in)."""
+    data = request.get_json(force=True) or {}
+    amount = float(data.get("amount", 0))
+    workstream_id = data.get("workstream_id")
+    source = data.get("source", "manual")
+    if amount <= 0:
+        return jsonify({"error": "amount must be positive"}), 400
+    conn = get_db()
+    try:
+        from ceo.db import record_metric
+        record_metric(
+            conn,
+            metric_name="revenue",
+            metric_value=amount,
+            workstream_id=workstream_id,
+            context={"source": source},
+        )
+        conn.commit()
+        return jsonify({"recorded": amount, "workstream_id": workstream_id})
     finally:
         conn.close()
 

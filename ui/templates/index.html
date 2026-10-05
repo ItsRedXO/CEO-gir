@@ -450,6 +450,21 @@
   <!-- ── Content ── -->
   <main class="content">
 
+    <!-- Autopilot Control Bar -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:12px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="color:var(--accent);font-size:10px;text-transform:uppercase;letter-spacing:1.5px">🤖 CEO Autopilot</span>
+        <span class="badge" id="pilot-status">idle</span>
+        <span style="color:var(--muted);font-size:10px" id="pilot-cycles">0 cycles</span>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-outline btn-sm" onclick="seedPipelines()" title="Seed all profit pipelines">🌱 Seed Pipelines</button>
+        <button class="btn btn-purple btn-sm" onclick="runCycle()" title="Run one decision cycle">▶ One Cycle</button>
+        <button class="btn btn-blue btn-sm" onclick="run5Cycles()" title="Run 5 cycles">⚡ Run 5 Cycles</button>
+        <button class="btn btn-green btn-sm" onclick="run10Cycles()" title="Run 10 cycles — max throughput">🚀 Run 10</button>
+      </div>
+    </div>
+
     <!-- Revenue Meter -->
     <div class="revenue-meter">
       <div class="meter-row">
@@ -993,9 +1008,75 @@
     if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); showCreateModal(); }
   });
 
+  // ── Autopilot ──
+  async function loadAutopilotStatus() {
+    try {
+      const data = await api('/api/autopilot/status');
+      document.getElementById('pilot-status').textContent = data.is_running ? 'running' : 'idle';
+      document.getElementById('pilot-cycles').textContent = data.cycles_run + ' cycles';
+    } catch(e) {}
+  }
+
+  async function seedPipelines() {
+    logEntry('seeding profit pipelines…', 'inf');
+    try {
+      const r = await api('/api/autopilot/seed', { method: 'POST', body: '{}' });
+      toast(`Seeded ${r.seeded ?? '?'} tasks`, 'ok');
+      logEntry(`pipelines seeded: ${r.seeded ?? 0} tasks queued`, 'ok');
+      await loadAll();
+    } catch(e) { toast('Seed failed: ' + e.message, 'err'); }
+  }
+
+  async function runCycle() {
+    const btn = event.target;
+    btn.disabled = true;
+    document.getElementById('pilot-status').textContent = 'running';
+    logEntry('CEO cycle started', 'inf');
+    try {
+      const r = await api('/api/autopilot/cycle', { method: 'POST', body: '{}' });
+      const br = r.brain || {};
+      toast(`Cycle ${r.cycle_number}: +${r.tasks_completed} done, $${(r.daily_revenue||0).toFixed(2)}/day`, 'ok');
+      logEntry(`cycle ${r.cycle_number} ▸ created=${br.tasks_created||0} dispatched=${r.tasks_dispatched||0} completed=${r.tasks_completed||0} revenue=$${(r.daily_revenue||0).toFixed(2)}`, 'ok');
+      if (r.errors && r.errors.length) r.errors.forEach(e => logEntry('⚠ ' + e, 'warn'));
+      document.getElementById('pilot-cycles').textContent = r.cycle_number + ' cycles';
+      await loadAll();
+    } catch(e) { toast('Cycle error: ' + e.message, 'err'); }
+    finally {
+      btn.disabled = false;
+      document.getElementById('pilot-status').textContent = 'idle';
+    }
+  }
+
+  async function run5Cycles() {
+    await _runNCycles(5);
+  }
+
+  async function run10Cycles() {
+    await _runNCycles(10);
+  }
+
+  async function _runNCycles(n) {
+    document.getElementById('pilot-status').textContent = 'running';
+    logEntry(`starting ${n}-cycle autopilot run…`, 'inf');
+    try {
+      const r = await api('/api/autopilot/run', {
+        method: 'POST',
+        body: JSON.stringify({ cycles: n }),
+      });
+      const s = r.summary || {};
+      toast(`${r.cycles_run} cycles: +${s.total_completed||0} tasks, $${(s.daily_revenue||0).toFixed(2)}/day`, 'ok');
+      logEntry(`autopilot ${r.cycles_run} cycles ▸ created=${s.total_tasks_created||0} completed=${s.total_completed||0} failed=${s.total_failed||0} revenue=$${(s.daily_revenue||0).toFixed(2)}`, 'ok');
+      document.getElementById('pilot-cycles').textContent = r.cycles_run + ' cycles';
+      await loadAll();
+    } catch(e) { toast('Autopilot error: ' + e.message, 'err'); }
+    finally { document.getElementById('pilot-status').textContent = 'idle'; }
+  }
+
   // ── Init ──
   loadAll();
+  loadAutopilotStatus();
   setInterval(loadAll, 15000);
+  setInterval(loadAutopilotStatus, 10000);
   logEntry('CEO GIR command center online', 'ok');
 </script>
 </body>
