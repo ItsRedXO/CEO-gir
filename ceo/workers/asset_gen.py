@@ -16,6 +16,10 @@ from .base import BaseWorker, WorkerResult
 log = logging.getLogger(__name__)
 
 _GUMROAD_TOKEN = os.environ.get("GUMROAD_ACCESS_TOKEN", "")
+if _GUMROAD_TOKEN:
+    log.info("✅ GUMROAD_ACCESS_TOKEN loaded (%s...%s)", _GUMROAD_TOKEN[:4], _GUMROAD_TOKEN[-4:])
+else:
+    log.warning("❌ GUMROAD_ACCESS_TOKEN not set — Gumroad posting DISABLED")
 
 
 def _post_to_gumroad(name: str, description: str, price_usd: float, preview_url: str = "") -> dict:
@@ -389,6 +393,7 @@ class Asset2DWorker(BaseWorker):
         elapsed = time.monotonic() - start
         posted = bool(gumroad_result.get("url"))
         if not posted and not _GUMROAD_TOKEN:
+            log.error("❌ assets_2d task skipped — GUMROAD_ACCESS_TOKEN not set")
             return WorkerResult(
                 success=False,
                 output={"error": "not_configured", "message": "Set GUMROAD_ACCESS_TOKEN env var — restart app after setting it"},
