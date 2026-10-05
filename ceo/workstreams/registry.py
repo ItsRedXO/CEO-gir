@@ -207,8 +207,8 @@ WORKSTREAM_REGISTRY: dict[str, WorkstreamConfig] = {
     "traffic": WorkstreamConfig(
         workstream_id="traffic",
         name="Reddit Traffic",
-        description="Auto-post Gumroad product previews to subreddits — requires Reddit API creds",
-        enabled=True,
+        description="Reddit API locked — disabled",
+        enabled=False,
         worker_class=RedditTrafficWorker,
         capabilities=["reddit_traffic", "social_media", "traffic", "promotion"],
         revenue_target_daily=0.0,
