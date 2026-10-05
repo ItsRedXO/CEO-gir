@@ -640,6 +640,12 @@ def dashboard():
     return render_template("index.html")
 
 
+if os.environ.get("CEO_AUTOSTART", "").lower() == "true":
+    _autopilot_active = True
+    _autopilot_thread = threading.Thread(target=_autopilot_loop, daemon=True, name="ceo-autopilot")
+    _autopilot_thread.start()
+    log.info("CEO_AUTOSTART: autopilot launched on boot — interval=%ds", _autopilot_interval)
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=os.environ.get("DEBUG", "false").lower() == "true")
