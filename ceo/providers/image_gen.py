@@ -123,4 +123,4 @@ def generate_asset_image(
         f"clean white background, high quality, commercial use, 4k, detailed"
     )
     negative = "watermark, text overlay, blurry, low quality, deformed"
-    return generate_image(prompt, width=width, height=height, seed=seed, negative_prompt=negative)
+    return generate_image(prompt, width=width, height=height, seed=seed, negative_prompt=negative, nologo=True)
