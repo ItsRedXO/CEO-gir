@@ -581,15 +581,28 @@ def api_flush_old_tasks():
         # Count before
         before = conn.execute("SELECT COUNT(*) FROM ceo_tasks").fetchone()[0]
 
-        # Delete everything that isn't a real Gumroad post
-        # Real = completed AND result_json contains a gumroad.com URL
-        conn.execute("""
-            DELETE FROM ceo_tasks
+        # Identify tasks to delete (not a real Gumroad post)
+        ids_to_delete = conn.execute("""
+            SELECT task_id FROM ceo_tasks
             WHERE NOT (
                 status = 'completed'
                 AND result_json LIKE '%gumroad.com%'
             )
-        """)
+        """).fetchall()
+        id_list = [r[0] for r in ids_to_delete]
+
+        # Delete child records first to satisfy FK constraints
+        if id_list:
+            for chunk_start in range(0, len(id_list), 900):
+                chunk = id_list[chunk_start:chunk_start + 900]
+                placeholders = ",".join("?" for _ in chunk)
+                conn.execute(f"DELETE FROM ceo_approvals WHERE task_id IN ({placeholders})", chunk)
+                conn.execute(f"DELETE FROM ceo_task_results WHERE task_id IN ({placeholders})", chunk)
+            # Now delete the parent tasks
+            for chunk_start in range(0, len(id_list), 900):
+                chunk = id_list[chunk_start:chunk_start + 900]
+                placeholders = ",".join("?" for _ in chunk)
+                conn.execute(f"DELETE FROM ceo_tasks WHERE task_id IN ({placeholders})", chunk)
 
         after = conn.execute("SELECT COUNT(*) FROM ceo_tasks").fetchone()[0]
 
