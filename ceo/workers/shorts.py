@@ -47,7 +47,8 @@ MOVIEPY_OK  = _moviepy is not None
 GTTS_OK     = _gtts is not None
 REQUESTS_OK = _requests_m is not None
 
-PEXELS_KEY     = os.environ.get("PEXELS_API_KEY", "")
+PEXELS_KEY     = os.environ.get("PEXELS_API_KEY", "")      # paused — use Pixabay instead
+PIXABAY_KEY    = os.environ.get("PIXABAY_API_KEY", "")     # free at pixabay.com/api/docs
 YT_CLIENT_ID   = os.environ.get("YOUTUBE_CLIENT_ID", "")
 YT_SECRET      = os.environ.get("YOUTUBE_CLIENT_SECRET", "")
 YT_REFRESH     = os.environ.get("YOUTUBE_REFRESH_TOKEN", "")
@@ -280,28 +281,67 @@ class ShortsWorker(BaseWorker):
         return out_path
 
     def _get_background(self, duration: float):
-        """Returns a 1080x1920 background clip — Pexels video or solid color."""
+        """Returns a 1080x1920 background clip — Pixabay/Pexels video or solid color."""
         from moviepy.editor import ColorClip, VideoFileClip
 
-        if REQUESTS_OK and PEXELS_KEY:
-            video_path = self._fetch_pexels_video(duration)
-            if video_path:
-                try:
-                    vc = VideoFileClip(str(video_path)).resize((1080, 1920)).subclip(0, min(duration, 30))
-                    # Loop if needed
-                    if vc.duration < duration:
-                        from moviepy.editor import concatenate_videoclips
-                        loops = int(duration / vc.duration) + 1
-                        vc = concatenate_videoclips([vc] * loops).subclip(0, duration)
-                    return vc
-                except Exception:
-                    pass
+        video_path = None
+        if REQUESTS_OK and PIXABAY_KEY:
+            video_path = self._fetch_pixabay_video()
+        elif REQUESTS_OK and PEXELS_KEY:
+            video_path = self._fetch_pexels_video()
+
+        if video_path:
+            try:
+                vc = VideoFileClip(str(video_path)).resize((1080, 1920)).subclip(0, min(duration, 30))
+                if vc.duration < duration:
+                    from moviepy.editor import concatenate_videoclips
+                    loops = int(duration / vc.duration) + 1
+                    vc = concatenate_videoclips([vc] * loops).subclip(0, duration)
+                return vc
+            except Exception:
+                pass
 
         # Fallback: dark gradient background
         return ColorClip(size=(1080, 1920), color=(15, 10, 30), duration=duration)
 
-    def _fetch_pexels_video(self, min_dur: float) -> Optional[Path]:
-        """Downloads a free stock video from Pexels. Returns local path or None."""
+    def _fetch_pixabay_video(self) -> Optional[Path]:
+        """Downloads a free stock video from Pixabay (free API, open signups)."""
+        queries = ["abstract technology dark", "digital network neon", "city night lights"]
+        for query in queries:
+            try:
+                resp = _requests_m.get(
+                    "https://pixabay.com/api/videos/",
+                    params={
+                        "key": PIXABAY_KEY,
+                        "q": query,
+                        "video_type": "film",
+                        "orientation": "vertical",
+                        "per_page": 5,
+                    },
+                    timeout=15,
+                )
+                if resp.status_code != 200:
+                    continue
+                hits = resp.json().get("hits", [])
+                for hit in hits:
+                    videos = hit.get("videos", {})
+                    for quality in ("medium", "small", "tiny"):
+                        v = videos.get(quality, {})
+                        url = v.get("url")
+                        if url:
+                            dl = _requests_m.get(url, timeout=30, stream=True)
+                            if dl.status_code == 200:
+                                tmp = SHORTS_DIR / f"bg_{int(time.time())}.mp4"
+                                with open(tmp, "wb") as f:
+                                    for chunk in dl.iter_content(8192):
+                                        f.write(chunk)
+                                return tmp
+            except Exception:
+                continue
+        return None
+
+    def _fetch_pexels_video(self) -> Optional[Path]:
+        """Downloads a free stock video from Pexels (key required)."""
         try:
             resp = _requests_m.get(
                 "https://api.pexels.com/videos/search",
