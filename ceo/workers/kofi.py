@@ -22,6 +22,15 @@ class KofiWorker(BaseWorker):
 
     def execute(self, task: dict) -> WorkerResult:
         start = time.monotonic()
+
+        if not KOFI_EMAIL or not KOFI_PASSWORD:
+            return WorkerResult(
+                success=False,
+                output={"error": "not_configured", "message": "Set KOFI_EMAIL and KOFI_PASSWORD env vars to enable Ko-fi posting"},
+                duration_ms=0,
+                worker_id=self.worker_id,
+            )
+
         inp = self._parse_input(task)
 
         asset_type  = inp.get("asset_type", "printable")
@@ -40,28 +49,32 @@ class KofiWorker(BaseWorker):
             "style":       style,
             "platform":    "kofi",
             "platform_fee": "0%",
-            "listing_ready": True,
             "post_url":    "https://ko-fi.com/manage/shop",
         }
 
-        posted = False
-        if KOFI_EMAIL and KOFI_PASSWORD:
-            posted = self._playwright_post(listing)
+        posted = self._playwright_post(listing)
 
         duration_ms = int((time.monotonic() - start) * 1000)
+        if not posted:
+            return WorkerResult(
+                success=False,
+                output={"error": "playwright_failed", "listing": listing},
+                duration_ms=duration_ms,
+                worker_id=self.worker_id,
+            )
+
         return WorkerResult(
             success=True,
             output={
                 "listing":       listing,
                 "preview_url":   preview_url,
                 "listing_ready": True,
-                "posted":        posted,
+                "posted":        True,
                 "platform":      "kofi",
-                "next_step":     "published" if posted else "add_KOFI_EMAIL_KOFI_PASSWORD_to_bashrc",
             },
             duration_ms=duration_ms,
             economic_data={
-                "revenue_estimate": price_usd * 5,  # 5 sales/month estimate, 0% fee
+                "revenue_estimate": price_usd * 5,
                 "spend": 0.0,
                 "price_usd": price_usd,
             },

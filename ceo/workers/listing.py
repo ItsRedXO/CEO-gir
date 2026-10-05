@@ -51,13 +51,10 @@ class EtsyListingWorker(BaseWorker):
 
         duration_ms = int((time.monotonic() - start) * 1000)
         return WorkerResult(
-            success=True,
-            output={"listing": listing, "platform": "etsy", "next_step": "review_and_publish"},
+            success=False,
+            output={"listing": listing, "platform": "etsy", "note": "Etsy requires OAuth — disabled until credentials wired"},
             duration_ms=duration_ms,
-            economic_data={
-                "revenue_estimate": listing["estimated_monthly_revenue"],
-                "spend": 0.20,  # Etsy listing fee
-            },
+            economic_data={"revenue_estimate": 0.0, "spend": 0.0},
         )
 
     def _parse_input(self, task: dict) -> dict:
@@ -130,9 +127,7 @@ class FiverrGigWorker(BaseWorker):
             "delivery_time_days": self._get_delivery_days(service_type, tier),
             "preview_url":     preview_url,
             "post_url":        "https://www.fiverr.com/users/seller_account/manage_gigs",
-            "status":          "ready_to_post",
-            "listing_ready":   True,
-            "estimated_monthly_revenue": rev_est,
+            "status":          "content_ready",
         }
 
         duration_ms = int((time.monotonic() - start) * 1000)
@@ -142,23 +137,12 @@ class FiverrGigWorker(BaseWorker):
                 "gig":          gig,
                 "platform":     "fiverr",
                 "preview_url":  preview_url,
-                "listing_ready": True,
-                "next_step":    "copy_and_post_to_fiverr",
-                "post_instructions": (
-                    f"1. Go to fiverr.com → Selling → Gigs → Create a New Gig\n"
-                    f"2. Category: {category}\n"
-                    f"3. Title: {title}\n"
-                    f"4. Tags: {', '.join(tags)}\n"
-                    f"5. Packages: Basic ${packages['basic']['price']} / "
-                    f"Standard ${packages['standard']['price']:.0f} / "
-                    f"Premium ${packages['premium']['price']:.0f}\n"
-                    f"6. Description: (see gig.description)\n"
-                    f"7. Upload the preview image from preview_url"
-                ),
+                "listing_ready": False,
+                "note":         "Fiverr has no posting API — gig content ready, post manually at fiverr.com",
             },
             duration_ms=duration_ms,
             economic_data={
-                "revenue_estimate": rev_est,
+                "revenue_estimate": 0.0,
                 "spend": 0.0,
             },
         )
