@@ -318,14 +318,14 @@ def _gumroad_pipeline(asset_type: str = "printable", style: str = "minimal") -> 
             "title": f"Generate {style} {asset_type} for Gumroad",
             "workstream_id": "assets_2d",
             "capabilities": ["2d_asset", "design"],
-            "priority": 3,
+            "priority": 1,
             "input_data": {"asset_type": asset_type, "style": style, "quantity": 1},
         },
         {
             "title": f"Post {style} {asset_type} to Gumroad",
             "workstream_id": "gumroad",
             "capabilities": ["2d_asset", "design", "printable"],
-            "priority": 3,
+            "priority": 1,
             "input_data": {
                 "asset_type": asset_type,
                 "style": style,
@@ -555,6 +555,17 @@ class CEOBrain:
                     clones_spawned += 1
 
         # ── 6. Fill gaps in unlocked workstreams ──────────────────────────
+        # Pipeline key prefixes by workstream_id (overrides the generic truncation)
+        _WS_PIPELINE_PREFIX = {
+            "assets_2d": "2d_",
+            "assets_3d": "3d_",
+            "gumroad":   "gumroad_",
+            "youtube":   "shorts_",
+            "etsy":      "etsy_",
+            "fiverr":    "fiverr_",
+            "affiliate": "affiliate_",
+        }
+
         for ws_id in WORKSTREAM_TARGETS:
             # Skip locked workstreams
             if ws_id not in unlocked_ws:
@@ -571,7 +582,8 @@ class CEOBrain:
             if current_active >= desired * 4:
                 continue
 
-            pipelines_for_ws = [k for k in PIPELINES if k.startswith(ws_id.replace("_", "")[:6])]
+            prefix = _WS_PIPELINE_PREFIX.get(ws_id, ws_id.replace("_", "")[:6])
+            pipelines_for_ws = [k for k in PIPELINES if k.startswith(prefix)]
             pipelines_to_add = max(0, desired - (current_active // max(1, len(pipelines_for_ws))))
 
             for pipeline_key in pipelines_for_ws[:pipelines_to_add]:

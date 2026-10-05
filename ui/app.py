@@ -627,6 +627,28 @@ def api_flush_old_tasks():
         conn.close()
 
 
+@app.route("/api/boost-gumroad", methods=["POST"])
+def api_boost_gumroad():
+    """Reprioritize all queued assets_2d/gumroad tasks to priority 1 so they run first."""
+    conn = get_db()
+    try:
+        result = conn.execute(
+            """
+            UPDATE ceo_tasks SET priority=1, updated_at=datetime('now')
+            WHERE status IN ('queued','assigned')
+              AND workstream_id IN ('assets_2d','gumroad')
+            """,
+        )
+        updated = result.rowcount
+        conn.commit()
+        return jsonify({"ok": True, "boosted": updated, "message": f"Boosted {updated} tasks to priority 1."})
+    except Exception as e:
+        log.error("boost-gumroad error: %s", e)
+        return jsonify({"ok": False, "error": str(e)}), 500
+    finally:
+        conn.close()
+
+
 @app.route("/api/stores")
 def api_stores():
     """Return active store status across all platforms."""

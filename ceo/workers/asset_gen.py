@@ -24,6 +24,7 @@ else:
 
 def _post_to_gumroad(name: str, description: str, price_usd: float, preview_url: str = "") -> dict:
     """Create a real Gumroad product. Returns {url, product_id} or {} on failure."""
+    log.info("_post_to_gumroad called: name='%s' price=$%.2f token_set=%s", name[:60], price_usd, bool(_GUMROAD_TOKEN))
     if not _GUMROAD_TOKEN:
         return {}
     try:
@@ -328,6 +329,7 @@ class Asset2DWorker(BaseWorker):
         style      = inp.get("style", "minimal")
         quantity   = int(inp.get("quantity", 1))
         title      = task.get("title", f"{style} {asset_type}")
+        log.info("Asset2DWorker: executing '%s' (type=%s style=%s token=%s)", title, asset_type, style, bool(_GUMROAD_TOKEN))
 
         spec = _2D_CATALOG.get(asset_type, _2D_CATALOG["printable"])
         base_price = spec["base_price"]
@@ -392,14 +394,17 @@ class Asset2DWorker(BaseWorker):
         }
         elapsed = time.monotonic() - start
         posted = bool(gumroad_result.get("url"))
-        if not posted and not _GUMROAD_TOKEN:
-            log.error("❌ assets_2d task skipped — GUMROAD_ACCESS_TOKEN not set")
-            return WorkerResult(
-                success=False,
-                output={"error": "not_configured", "message": "Set GUMROAD_ACCESS_TOKEN env var — restart app after setting it"},
-                duration_ms=int(elapsed * 1000),
-                worker_id=self.worker_id,
-            )
+        if not posted:
+            if not _GUMROAD_TOKEN:
+                log.error("❌ assets_2d task skipped — GUMROAD_ACCESS_TOKEN not set")
+                return WorkerResult(
+                    success=False,
+                    output={"error": "not_configured", "message": "Set GUMROAD_ACCESS_TOKEN env var — restart app after setting it"},
+                    duration_ms=int(elapsed * 1000),
+                    worker_id=self.worker_id,
+                )
+            else:
+                log.error("❌ Gumroad post FAILED for '%s' — see _post_to_gumroad logs above", title)
         return WorkerResult(
             success=posted,
             output=output,

@@ -889,6 +889,7 @@
       </div>
       <div style="display:flex;gap:8px;align-items:center">
         <button class="btn btn-outline btn-sm" onclick="seedPipelines()" title="Seed all profit pipelines">🌱 Seed</button>
+        <button class="btn btn-outline btn-sm" onclick="boostGumroad()" title="Set all queued Gumroad/2D tasks to priority 1" style="border-color:#f39c12;color:#f39c12">⚡ Boost Gumroad</button>
         <button class="btn btn-outline btn-sm" onclick="flushOldTasks()" title="Purge stale simulation tasks from DB" style="border-color:#e74c3c;color:#e74c3c">🗑 Flush Old Data</button>
         <button id="autopilot-toggle-btn"
           onclick="toggleAutopilot()"
@@ -2004,6 +2005,14 @@
       logEntry('Old simulation data purged — CEO running real pipeline only', 'ok');
       await loadAll();
     } catch(e) { toast('Flush failed: ' + e.message, 'err'); }
+  }
+
+  async function boostGumroad() {
+    try {
+      const r = await api('/api/boost-gumroad', { method: 'POST', body: '{}' });
+      toast(r.message || 'Boosted!', 'ok');
+      logEntry(`Gumroad priority boost: ${r.boosted} tasks set to priority 1`, 'ok');
+    } catch(e) { toast('Boost failed: ' + e.message, 'err'); }
   }
 
   async function seedPipelines() {
