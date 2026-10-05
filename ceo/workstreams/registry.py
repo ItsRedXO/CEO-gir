@@ -72,8 +72,8 @@ WORKSTREAM_REGISTRY: dict[str, WorkstreamConfig] = {
     "fiverr": WorkstreamConfig(
         workstream_id="fiverr",
         name="Fiverr",
-        description="Freelance services on Fiverr",
-        enabled=True,
+        description="Freelance services on Fiverr — no posting API, content-prep only",
+        enabled=False,
         worker_class=FiverrGigWorker,
         capabilities=["freelance", "service_delivery", "fiverr", "gig"],
         revenue_target_daily=15.0,
@@ -177,8 +177,8 @@ WORKSTREAM_REGISTRY: dict[str, WorkstreamConfig] = {
     "youtube": WorkstreamConfig(
         workstream_id="youtube",
         name="YouTube Shorts",
-        description="AI-narrated Shorts on trending topics — free with gTTS + Pollinations",
-        enabled=True,
+        description="AI-narrated Shorts — requires YouTube OAuth setup",
+        enabled=False,
         worker_class=ShortsWorker,
         capabilities=["youtube_shorts", "video_content", "content", "social_media"],
         revenue_target_daily=5.0,
@@ -197,8 +197,8 @@ WORKSTREAM_REGISTRY: dict[str, WorkstreamConfig] = {
     "kofi": WorkstreamConfig(
         workstream_id="kofi",
         name="Ko-fi Shop",
-        description="Digital products on Ko-fi — 0% platform fee, you keep 100%",
-        enabled=True,
+        description="Digital products on Ko-fi — requires KOFI_EMAIL + KOFI_PASSWORD",
+        enabled=False,
         worker_class=KofiWorker,
         capabilities=["kofi", "digital_products", "shop", "0pct_fees"],
         revenue_target_daily=5.0,
@@ -207,8 +207,8 @@ WORKSTREAM_REGISTRY: dict[str, WorkstreamConfig] = {
     "traffic": WorkstreamConfig(
         workstream_id="traffic",
         name="Reddit Traffic",
-        description="Auto-post asset previews to relevant subreddits to drive buyers",
-        enabled=False,
+        description="Auto-post Gumroad product previews to subreddits — requires Reddit API creds",
+        enabled=True,
         worker_class=RedditTrafficWorker,
         capabilities=["reddit_traffic", "social_media", "traffic", "promotion"],
         revenue_target_daily=0.0,

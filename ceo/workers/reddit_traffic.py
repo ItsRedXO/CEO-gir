@@ -101,7 +101,15 @@ class RedditTrafficWorker(BaseWorker):
         max_posts   = int(inp.get("max_posts", 2))
 
         if not all([REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET, REDDIT_USERNAME, REDDIT_PASSWORD]):
-            return self._sim_result(asset_type, style, store_url, start)
+            return WorkerResult(
+                success=False,
+                output={
+                    "error": "not_configured",
+                    "message": "Set REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET, REDDIT_USERNAME, REDDIT_PASSWORD env vars",
+                    "how_to": "Create a script app at reddit.com/prefs/apps, use your account AudienceAny3122",
+                },
+                duration_ms=int((time.monotonic() - start) * 1000),
+            )
 
         try:
             import praw
