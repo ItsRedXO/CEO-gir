@@ -2194,15 +2194,24 @@
     // Create office node elements
     const el = document.getElementById('hub-offices');
     if (el) {
-      el.innerHTML = Object.entries(_OFFICES).map(([wsId, o]) =>
-        `<div class="office-node" id="office-${wsId}" style="left:${o.x}%;top:${o.y}%">
-          <div class="office-box locked" id="office-box-${wsId}">
+      el.innerHTML = Object.entries(_OFFICES).map(([wsId, o]) => {
+        const initClass = o.static ? 'office-box active' : 'office-box locked';
+        const initTask  = o.static ? 'scanning' : '—';
+        return `<div class="office-node" id="office-${wsId}" style="left:${o.x}%;top:${o.y}%">
+          <div class="${initClass}" id="office-box-${wsId}">
             <div class="office-icon">${o.icon}</div>
             <div class="office-name">${o.label}</div>
-            <div class="office-tasks" id="office-tasks-${wsId}">—</div>
+            <div class="office-tasks" id="office-tasks-${wsId}">${initTask}</div>
           </div>
-        </div>`
-      ).join('');
+        </div>`;
+      }).join('');
+    }
+
+    // Place static agents at their office instead of hub
+    for (const [wsId, o] of Object.entries(_OFFICES)) {
+      if (!o.static) continue;
+      const ag = _getAgent(wsId);
+      if (ag) _setAgent(ag, o.x, o.y, 'working');
     }
   }
 
